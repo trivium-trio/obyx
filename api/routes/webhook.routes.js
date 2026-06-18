@@ -1,18 +1,13 @@
-// =============================================================================
 // PAYSTACK WEBHOOK HANDLER
-// Receives payment confirmation events from Paystack.
-// On successful fiat receipt → triggers Circle USDC disbursement to the user.
-//
-// This is the critical bridge between fiat payment and crypto delivery.
-// =============================================================================
-const express = require('express');
-const router = express.Router();
-const { Transaction, User } = require('../models');
-const circleService = require('../services/circle.service');
-const verifyPaystackWebhook = require('../middleware/verifyPaystackWebhook');
+import { Router } from 'express';
+import { Transaction, User } from '../models/index.js';
+import { sendUSDC } from '../services/circle.service.js';
+import verifyPaystackWebhook from '../middleware/verifyPaystackWebhook.js';
 
-// ---------------------------------------------------------------------------
-// POST /api/webhooks/paystack
+const router = Router();
+
+/*
+// POST /api/v1/webhooks/paystack
 // Paystack sends a POST request here when a payment event occurs.
 //
 // Flow for a successful charge:
@@ -22,9 +17,8 @@ const verifyPaystackWebhook = require('../middleware/verifyPaystackWebhook');
 //   4. Update status to FIAT_RECEIVED
 //   5. Call Circle to send USDC to the user's wallet
 //   6. Update status to COMPLETED with the on-chain txHash
-//
-// IMPORTANT: Always respond 200 quickly — Paystack retries on timeout.
-// ---------------------------------------------------------------------------
+IMPORTANT: Always respond 200 quickly — Paystack retries on timeout.
+*/
 router.post('/paystack', verifyPaystackWebhook, async (req, res) => {
   // Always acknowledge receipt immediately to prevent Paystack retries.
   // We process asynchronously below.
@@ -32,8 +26,6 @@ router.post('/paystack', verifyPaystackWebhook, async (req, res) => {
 
   try {
     const event = req.body;
-
-    // --- Only process successful charge events ---
     if (event.event !== 'charge.success') {
       console.log(`[WEBHOOK] Ignoring event type: ${event.event}`);
       return;
@@ -78,7 +70,7 @@ router.post('/paystack', verifyPaystackWebhook, async (req, res) => {
     console.log(`[WEBHOOK] Sending ${transaction.cryptoAmount} USDC -> ${user.walletAddress}`);
 
     try {
-      const circleResult = await circleService.sendUSDC(
+      const circleResult = await sendUSDC(
         user.walletAddress,
         parseFloat(transaction.cryptoAmount)
       );
@@ -89,7 +81,7 @@ router.post('/paystack', verifyPaystackWebhook, async (req, res) => {
         txHash: circleResult.txHash,
       });
 
-      console.log(`[WEBHOOK] ✅ Transaction ${transaction.id} COMPLETED | txHash: ${circleResult.txHash}`);
+      console.log(`[WEBHOOK] transaction ${transaction.id} COMPLETED | txHash: ${circleResult.txHash}`);
     } catch (circleError) {
       // Circle call failed — mark transaction as FAILED for manual review
       console.error(`[WEBHOOK] Circle disbursement failed for tx ${transaction.id}:`, circleError);
@@ -102,4 +94,4 @@ router.post('/paystack', verifyPaystackWebhook, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

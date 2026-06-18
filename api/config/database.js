@@ -1,5 +1,15 @@
+// =============================================================================
+// DATABASE CONFIGURATION
+// Handles Sequelize initialization with proper SSL for Supabase managed Postgres.
+// =============================================================================
 import { Sequelize } from 'sequelize';
 
+/**
+ * SSL Configuration for Supabase/Render managed PostgreSQL.
+ * - Accepts a custom CA cert via DATABASE_CA_CERT env var.
+ * - Can force strict SSL via DATABASE_SSL_REJECT_UNAUTHORIZED=true.
+ * - Defaults to accepting self-signed certs (common for managed DBs).
+ */
 const sslConfig = (() => {
   const base = { require: true };
 
@@ -7,12 +17,11 @@ const sslConfig = (() => {
     return { ...base, rejectUnauthorized: true, ca: process.env.DATABASE_CA_CERT };
   }
 
-  // Allow forcing strict SSL verification via environment variables
   if (process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'true') {
     return { ...base, rejectUnauthorized: true };
   }
 
-  // Default: accept self-signed certificates (Fix for Render/Supabase managed DBs)
+  // Default: accept self-signed certificates (Supabase managed DBs)
   return { ...base, rejectUnauthorized: false };
 })();
 
@@ -20,8 +29,8 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   logging: false,
   dialectOptions: {
-    ssl: sslConfig
-  }
+    ssl: sslConfig,
+  },
 });
 
 export default sequelize;

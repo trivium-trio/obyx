@@ -1,37 +1,19 @@
-// =============================================================================
+
 // ON-RAMP ROUTES
 // Handles fiat → crypto conversion flow.
-// User sends KES via M-Pesa, we send USDC to their wallet on Base Sepolia.
-// =============================================================================
-const express = require('express');
-const router = express.Router();
-const { User, Transaction } = require('../models');
-const verifySupabaseToken = require('../middleware/verifySupabaseToken');
-const paystackService = require('../services/paystack.service');
+import { Router } from 'express';
+import { User, Transaction } from '../models/index.js';
+import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
+import { initiateSTKPush } from '../services/paystack.service.js';
 
-// ---------------------------------------------------------------------------
-// EXCHANGE RATE CONFIG
-// TODO: Replace with a live oracle/API feed in production
-// ---------------------------------------------------------------------------
+const router = Router();
 const EXCHANGE_RATE = 130.00; // 1 USDC = 130 KES
 const MIN_FIAT_AMOUNT = 100;  // Minimum 100 KES (~$0.77)
 const MAX_FIAT_AMOUNT = 500000; // Maximum 500,000 KES (~$3,846)
-
-// ---------------------------------------------------------------------------
-// POST /api/onramp/init
-// Initiates an on-ramp transaction:
-//   1. Validates the fiat amount
-//   2. Calculates USDC equivalent at the locked exchange rate
-//   3. Creates a PENDING transaction record
-//   4. Triggers a Paystack STK Push to the user's phone
-//   5. Returns the transaction ID for frontend polling
-// ---------------------------------------------------------------------------
 router.post('/init', verifySupabaseToken, async (req, res) => {
   try {
     const { fiatAmount } = req.body;
     const userId = req.user.id;
-
-    // --- Validate fiat amount ---
     if (!fiatAmount || isNaN(fiatAmount) || fiatAmount <= 0) {
       return res.status(400).json({
         success: false,
@@ -55,7 +37,7 @@ router.post('/init', verifySupabaseToken, async (req, res) => {
       });
     }
 
-    // --- Look up the user to get their phone number and wallet ---
+   
     const user = await User.findByPk(userId);
 
     if (!user) {
@@ -99,7 +81,7 @@ router.post('/init', verifySupabaseToken, async (req, res) => {
     // --- Trigger the Paystack STK Push ---
     // We use the transaction ID as the Paystack reference for easy lookup later.
     try {
-      const paystackResponse = await paystackService.initiateSTKPush(
+      const paystackResponse = await initiateSTKPush(
         user.phoneNumber,
         amount,
         transaction.id // Use our transaction ID as the payment reference
@@ -145,4 +127,4 @@ router.post('/init', verifySupabaseToken, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

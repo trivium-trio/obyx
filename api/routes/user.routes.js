@@ -1,18 +1,9 @@
-// =============================================================================
 // USER ROUTES
-// Handles user profile operations (wallet linking, etc.)
-// All routes are protected by Supabase JWT verification.
-// =============================================================================
-const express = require('express');
-const router = express.Router();
-const { User } = require('../models');
-const verifySupabaseToken = require('../middleware/verifySupabaseToken');
+import { Router } from 'express';
+import { User } from '../models/index.js';
+import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
 
-// ---------------------------------------------------------------------------
-// POST /api/user/link-wallet
-// Called after the user connects their MetaMask wallet on the frontend.
-// Updates (or sets) the walletAddress field on the user's record.
-// ---------------------------------------------------------------------------
+const router = Router();
 router.post('/link-wallet', verifySupabaseToken, async (req, res) => {
   try {
     const { walletAddress } = req.body;
@@ -55,7 +46,6 @@ router.post('/link-wallet', verifySupabaseToken, async (req, res) => {
 
     if (updatedCount === 0) {
       // User exists in Supabase Auth but not yet in our DB.
-      // This can happen if the user signed up but the sync hasn't run.
       return res.status(404).json({
         success: false,
         error: 'User not found in database. Please complete onboarding first.',
@@ -86,4 +76,4 @@ router.post('/link-wallet', verifySupabaseToken, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

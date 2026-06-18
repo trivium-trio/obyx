@@ -1,21 +1,9 @@
-// =============================================================================
+
 // PAYSTACK WEBHOOK SIGNATURE VERIFICATION
 // Ensures incoming webhook requests actually originate from Paystack by
-// validating the HMAC SHA-512 signature in the x-paystack-signature header.
-// =============================================================================
-const crypto = require('crypto');
 
-/**
- * Express middleware: verifyPaystackWebhook
- *
- * IMPORTANT: This middleware requires express.json() with `verify` option
- * to preserve the raw request body. See server.js for setup.
- *
- * Flow:
- *   1. Read the x-paystack-signature header from the request.
- *   2. Compute HMAC SHA-512 of the raw body using our Paystack secret key.
- *   3. Compare signatures — reject if they don't match.
- */
+import crypto from 'crypto';
+
 const verifyPaystackWebhook = (req, res, next) => {
   try {
     const signature = req.headers['x-paystack-signature'];
@@ -25,7 +13,7 @@ const verifyPaystackWebhook = (req, res, next) => {
       return res.status(401).json({ error: 'Missing webhook signature.' });
     }
 
-    // Compute the expected signature from the raw request body
+    // Compute the expected signature from the request body
     const expectedSignature = crypto
       .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
       .update(JSON.stringify(req.body))
@@ -44,4 +32,4 @@ const verifyPaystackWebhook = (req, res, next) => {
   }
 };
 
-module.exports = verifyPaystackWebhook;
+export default verifyPaystackWebhook;
