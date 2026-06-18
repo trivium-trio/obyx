@@ -9,6 +9,13 @@ app.use(cors());
 app.use(express.json());
 dotenv.config();
 
+app.get('/',(req,res)=>{
+    res.send('Hello World');
+});
+app.get('/user',(req,res)=>{
+    res.send('these  are  my  users');
+});
+
 // Paystack integration
 app.post('/api/checkout', async (req, res) => {
   const { email, amountInKes, walletAddress } = req.body;
@@ -52,16 +59,10 @@ app.post('/api/checkout', async (req, res) => {
   }
 });
 
-
-app.get('/',(req,res)=>{
-    res.send('Hello World');
-});
-app.get('/user',(req,res)=>{
-    res.send('these  are  my  users');
-});
 app.post('/api/v1/payments/checkout',(req,res)=>{
     res.send('Checkout route');
 });
+
 const port=process.env.PORT || 5000;
 app.listen(port,()=>{
     console.log(`OBYX  is  cooking on port ${port}`);
