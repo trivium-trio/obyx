@@ -20,7 +20,7 @@
  *   - Set the mobile_money provider (e.g., "mpesa")
  *   - Return the actual Paystack reference from the response
  */
-const initiateSTKPush = async (phoneNumber, amount, reference) => {
+export const initiateSTKPush = async (phoneNumber, amount, reference) => {
   console.log(`[PAYSTACK MOCK] STK Push -> Phone: ${phoneNumber}, Amount: ${amount} KES, Ref: ${reference}`);
 
   // Simulate a short network delay
@@ -46,7 +46,7 @@ const initiateSTKPush = async (phoneNumber, amount, reference) => {
  *   - Hit GET https://api.paystack.co/transaction/verify/:reference
  *   - Return { status: 'success', amount, currency } from the response
  */
-const verifyPayment = async (reference) => {
+export const verifyPayment = async (reference) => {
   console.log(`[PAYSTACK MOCK] Verifying payment: ${reference}`);
 
   await new Promise((resolve) => setTimeout(resolve, 100));
@@ -60,9 +60,4 @@ const verifyPayment = async (reference) => {
       reference,
     },
   };
-};
-
-module.exports = {
-  initiateSTKPush,
-  verifyPayment,
 };
