@@ -20,7 +20,7 @@
  *   - Execute a transfer of `amount` USDC on Base Sepolia
  *   - Return the real transaction hash from the blockchain
  */
-const sendUSDC = async (walletAddress, amount) => {
+export const sendUSDC = async (walletAddress, amount) => {
   console.log(`[CIRCLE MOCK] Sending ${amount} USDC -> ${walletAddress} on Base Sepolia`);
 
   // Simulate blockchain confirmation delay
@@ -48,7 +48,7 @@ const sendUSDC = async (walletAddress, amount) => {
  *   - Query the Circle API or Base Sepolia RPC for tx confirmation
  *   - Return { confirmed: true/false, blockNumber, ... }
  */
-const getTransferStatus = async (txHash) => {
+export const getTransferStatus = async (txHash) => {
   console.log(`[CIRCLE MOCK] Checking tx status: ${txHash}`);
 
   await new Promise((resolve) => setTimeout(resolve, 100));
@@ -59,9 +59,4 @@ const getTransferStatus = async (txHash) => {
     blockNumber: 12345678,
     chain: 'base-sepolia',
   };
-};
-
-module.exports = {
-  sendUSDC,
-  getTransferStatus,
 };
