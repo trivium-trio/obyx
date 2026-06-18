@@ -1,69 +1,95 @@
-const express  =require('express');
-const cors=require('cors');
-const dotenv=require('dotenv');
-const app=express();
+// =============================================================================
+// OBYX API SERVER — Entry Point
+// Express.js orchestrator for the on-ramp/off-ramp platform.
+//
+// Architecture:
+//   server.js (this file)  →  Wires middleware, routes, and DB
+//   middleware/             →  Auth (Supabase JWT), Webhook verification
+//   routes/                →  User, OnRamp, Webhooks
+//   services/              →  Circle (Friend 1), Paystack (Friend 2) — mocked
+//   models/                →  Sequelize models (User, Transaction)
+//   config/                →  Database connection with SSL
+// =============================================================================
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
 
-
-
-app.use(cors());
-app.use(express.json());
+// Load environment variables BEFORE anything else
 dotenv.config();
 
-app.get('/',(req,res)=>{
-    res.send('Hello World');
+const app = express();
+
+// ---------------------------------------------------------------------------
+// GLOBAL MIDDLEWARE
+// ---------------------------------------------------------------------------
+
+// CORS — allow the Next.js frontend to call our API
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+}));
+
+// JSON body parser for all routes
+app.use(express.json());
+
+// ---------------------------------------------------------------------------
+// ROUTE IMPORTS
+// ---------------------------------------------------------------------------
+const userRoutes = require('./routes/user.routes');
+const onrampRoutes = require('./routes/onramp.routes');
+const webhookRoutes = require('./routes/webhook.routes');
+
+// ---------------------------------------------------------------------------
+// ROUTES
+// ---------------------------------------------------------------------------
+
+// Health check
+app.get('/', (req, res) => {
+  res.json({
+    service: 'Obyx API',
+    status: 'healthy',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+  });
 });
-app.get('/user',(req,res)=>{
-    res.send('these  are  my  users');
-});
 
-// Paystack integration
-app.post('/api/checkout', async (req, res) => {
-  const { email, amountInKes, walletAddress } = req.body;
-  // we must manually write 'if' statements to check every single variable.
-  if (!email || typeof email !== 'string' || !email.includes('@')) {
-    return res.status(400).json({ error: 'Invalid email provided' });
-  }
-  
-  if (!amountInKes || typeof amountInKes !== 'number') {
-    return res.status(400).json({ error: 'Amount must be a number' });
-  }
+// User routes (wallet linking, profile)
+app.use('/api/user', userRoutes);
 
-  if (!walletAddress || typeof walletAddress !== 'string') {
-    return res.status(400).json({ error: 'Wallet address is required' });
-  }
+// On-ramp routes (fiat → crypto)
+app.use('/api/onramp', onrampRoutes);
 
-  // ... (The rest of the Paystack fetch() logic remains the same)
+// Webhook routes (Paystack callbacks — no auth, uses signature verification)
+app.use('/api/webhooks', webhookRoutes);
+
+// ---------------------------------------------------------------------------
+// DATABASE SYNC & SERVER START
+// ---------------------------------------------------------------------------
+const { sequelize } = require('./models');
+const PORT = process.env.PORT || 5000;
+
+const startServer = async () => {
   try {
-    // Build the strict payload
-    const payload = {
-      email: email,
-      amount: amountInKes * 100, // Paystack requires subunits (5000 KES = 500000 cents)
-      currency: 'KES',
-      channels: ['mobile_money'], 
-      metadata: {
-        custom_fields: [
-          {
-            display_name: 'Wallet Address',
-            variable_name: 'wallet_address',
-            value: walletAddress // CRITICAL: We pass the wallet address here so it comes back in the webhook!
-          }
-        ]
-      }
-    };
+    // Test the database connection
+    await sequelize.authenticate();
+    console.log('✅ Database connection established successfully.');
 
-    // TODO: Add Paystack API fetch() call here using `payload`
+    // Sync models with the database
+    // WARNING: Use { alter: true } in development only. In production,
+    // use migrations (npx sequelize-cli db:migrate).
+    await sequelize.sync({ alter: true });
+    console.log('✅ Database models synchronized.');
 
-  } catch (error) {
-    console.error('Checkout error:', error);
-    return res.status(500).json({ error: 'Checkout failed' });
+    // Start listening
+    app.listen(PORT, () => {
+      console.log(`\n🚀 OBYX API is cooking on port ${PORT}`);
+      console.log(`   Health: http://localhost:${PORT}/`);
+      console.log(`   Env:    ${process.env.NODE_ENV || 'development'}\n`);
+    });
+  } catch (err) {
+    console.error('❌ Failed to start server:', err);
+    process.exit(1);
   }
-});
+};
 
-app.post('/api/v1/payments/checkout',(req,res)=>{
-    res.send('Checkout route');
-});
-
-const port=process.env.PORT || 5000;
-app.listen(port,()=>{
-    console.log(`OBYX  is  cooking on port ${port}`);
-});
+startServer();
