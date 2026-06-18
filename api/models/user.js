@@ -1,6 +1,6 @@
-import { DataTypes } from 'sequelize';
+const { DataTypes } = require('sequelize');
 
-export default (sequelize) => {
+module.exports = (sequelize) => {
   const User = sequelize.define('User', {
     // We use the EXACT same ID that Supabase generates for the user
     id: {
@@ -14,18 +14,18 @@ export default (sequelize) => {
       unique: true,
       comment: "User's mobile money number (e.g., for M-Pesa/Paystack)"
     },
-    walletAddress: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      unique: true,
-      set(val) {
-        if (val) this.setDataValue('walletAddress', val.toLowerCase());
-      }
-    }
+walletAddress: {
+  type: DataTypes.STRING,
+  allowNull: true,
+  unique: true, 
+  set(val) {
+    if (val) this.setDataValue('walletAddress', val.toLowerCase());
+  }
+}
   }, {
     tableName: 'users',
-    timestamps: true,
+    timestamps: true, 
   });
 
   return User;
-};
+}; 
