@@ -3,7 +3,6 @@ import crypto from 'crypto';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-// 🚨 Initialize dotenv BEFORE using process.env
 dotenv.config();
 
 const app = express();
@@ -11,12 +10,22 @@ const app = express();
 // Middleware
 app.use(cors());
 
-// 🚨 CRITICAL FIX: Only ONE express.json() call, and it must include the rawBody verify function
-app.use(express.json({
+const standardPaser = express.json();
+const webhookParser = express.json({
   verify: (req, res, buf) => {
     req.rawBody = buf; // Attach the raw binary buffer to the request object
   }
-}));
+});
+
+app.use((req, res, next) => {
+  // If the request is heading to ANY webhook route, skip the standard parser
+  if (req.originalUrl.includes('/webhook')) {
+    next(); 
+  } else {
+    // For all normal routes (/api/checkout, /user, etc.), use the lightweight parser
+    standardParser(req, res, next);
+  }
+});
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || 'sk_test_your_key_here';
 
@@ -36,7 +45,7 @@ app.post('/api/v1/payments/checkout', (req, res) => {
     res.send('Checkout route');
 });
 
-// STEP 1.2: PAYSTACK INITIALIZATION
+// PAYSTACK INITIALIZATION
 app.post('/api/checkout', async (req, res) => {
     try {
         const { email, amountInKes, walletAddress } = req.body;
@@ -95,8 +104,8 @@ app.post('/api/checkout', async (req, res) => {
     }
 });
 
-// STEP 3: PAYSTACK WEBHOOK RECEIVER
-app.post('/api/paystack/webhook', (req, res) => {
+//PAYSTACK WEBHOOK RECEIVER
+app.post('/api/paystack/webhook', webhookParser, (req, res) => {
   try {
     const rawBody = req.rawBody; 
     const signature = req.headers['x-paystack-signature'];
@@ -126,7 +135,7 @@ app.post('/api/paystack/webhook', (req, res) => {
         field => field.variable_name === 'wallet_address'
       )?.value;
 
-      console.log(`✅ M-Pesa Payment Confirmed!`);
+      console.log(`M-Pesa Payment Confirmed!`);
       console.log(`Amount: ${amountPaidInKes} KES`);
       console.log(`Target Wallet: ${walletAddress}`);
       console.log(`Ref: ${transactionRef}`);
@@ -143,7 +152,6 @@ app.post('/api/paystack/webhook', (req, res) => {
 // ==========================================
 // SERVER INITIALIZATION
 // ==========================================
-// CRITICAL FIX: Only ONE app.listen() at the very bottom of the file
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`BYX is cooking on port ${PORT}`);
