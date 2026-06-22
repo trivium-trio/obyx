@@ -3,6 +3,7 @@
 // Ensures incoming webhook requests actually originate from Paystack by
 
 import crypto from 'crypto';
+import config from '../config/env.js';
 
 const verifyPaystackWebhook = (req, res, next) => {
   try {
@@ -13,10 +14,10 @@ const verifyPaystackWebhook = (req, res, next) => {
       return res.status(401).json({ error: 'Missing webhook signature.' });
     }
 
-    // Compute the expected signature from the request body
+    // Compute the expected signature from the raw request body
     const expectedSignature = crypto
-      .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
-      .update(JSON.stringify(req.body))
+      .createHmac('sha512', config.PAYSTACK_SECRET_KEY)
+      .update(req.rawBody || JSON.stringify(req.body))
       .digest('hex');
 
     if (signature !== expectedSignature) {
