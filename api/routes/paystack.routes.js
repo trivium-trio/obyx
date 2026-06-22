@@ -1,52 +1,20 @@
 import express from 'express';
-import crypto from 'crypto';
-import cors from 'cors';
-import dotenv from 'dotenv';
+import verifyPaystack from '../middleware/verifypaystack.js'; // 🚨 NEW: Import the extracted middleware
 
-dotenv.config();
+const router = express.Router();
 
-const app = express();
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || 'sk_test_your_key_here';
 
-// Middleware
-app.use(cors());
-
-const standardPaser = express.json();
 const webhookParser = express.json({
   verify: (req, res, buf) => {
     req.rawBody = buf; // Attach the raw binary buffer to the request object
   }
 });
 
-app.use((req, res, next) => {
-  // If the request is heading to ANY webhook route, skip the standard parser
-  if (req.originalUrl.includes('/webhook')) {
-    next(); 
-  } else {
-    // For all normal routes (/api/checkout, /user, etc.), use the lightweight parser
-    standardParser(req, res, next);
-  }
-});
-
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || 'sk_test_your_key_here';
-
 // ==========================================
-// ROUTES
+// STEP 1.2: PAYSTACK INITIALIZATION
 // ==========================================
-
-app.get('/', (req, res) => {
-    res.send('Hello World');
-});
-
-app.get('/user', (req, res) => {
-    res.send('these are my users');
-});
-
-app.post('/api/v1/payments/checkout', (req, res) => {
-    res.send('Checkout route');
-});
-
-// PAYSTACK INITIALIZATION
-app.post('/api/checkout', async (req, res) => {
+router.post('/checkout', async (req, res) => {
     try {
         const { email, amountInKes, walletAddress } = req.body;
 
@@ -104,27 +72,11 @@ app.post('/api/checkout', async (req, res) => {
     }
 });
 
-//PAYSTACK WEBHOOK RECEIVER
-app.post('/api/paystack/webhook', webhookParser, (req, res) => {
+// ==========================================
+// STEP 3: PAYSTACK WEBHOOK RECEIVER
+// ==========================================
+router.post('/paystack/webhook', webhookParser, verifyPaystack, (req, res) => {
   try {
-    const rawBody = req.rawBody; 
-    const signature = req.headers['x-paystack-signature'];
-
-    const expectedSignature = crypto
-      .createHmac('sha512', PAYSTACK_SECRET_KEY)
-      .update(rawBody)
-      .digest('hex');
-
-    const isAuthentic = crypto.timingSafeEqual(
-        Buffer.from(expectedSignature, 'hex'),
-        Buffer.from(signature || '', 'hex') 
-    );
-
-    if (!isAuthentic) {
-      console.error('ALERT: Invalid Webhook Signature Detected!');
-      return res.status(401).json({ error: 'Unauthorized payload' });
-    }
-
     const event = req.body;
 
     if (event.event === 'charge.success') {
@@ -149,10 +101,4 @@ app.post('/api/paystack/webhook', webhookParser, (req, res) => {
   }
 });
 
-// ==========================================
-// SERVER INITIALIZATION
-// ==========================================
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`BYX is cooking on port ${PORT}`);
-});
+export default router;
