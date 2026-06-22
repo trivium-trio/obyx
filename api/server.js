@@ -10,6 +10,7 @@ dotenv.config();
 import userRoutes from './routes/user.routes.js';
 import onrampRoutes from './routes/onramp.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
+import paystackRoutes from './routes/paystack.routes.js';
 
 // Import database
 import { sequelize } from './models/index.js';
