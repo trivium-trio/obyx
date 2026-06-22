@@ -2,6 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import config from './config/env.js';
 
 // Load environment variables 
 dotenv.config();
@@ -17,12 +18,16 @@ import { sequelize } from './models/index.js';
 
 const app = express();
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: config.FRONTEND_URL,
   credentials: true,
 }));
 
-// JSON body parser for all routes
-app.use(express.json());
+// JSON body parser for all routes (attaches raw body for webhooks)
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.get('/', (req, res) => {
   res.json({
     service: 'Obyx API',
@@ -35,8 +40,10 @@ app.use('/api/v1/user', userRoutes);
 
 app.use('/api/v1/onramp', onrampRoutes);
 
+app.use('/api/v1/paystack', paystackRoutes);
+
 app.use('/api/v1/webhooks', webhookRoutes);
-const PORT = process.env.PORT || 5000;
+const PORT = config.PORT;
 
 const startServer = async () => {
   try {

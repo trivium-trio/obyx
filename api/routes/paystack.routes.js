@@ -1,15 +1,8 @@
 import express from 'express';
-import verifyPaystack from '../middleware/verifypaystack.js'; // 🚨 NEW: Import the extracted middleware
+import verifyPaystackWebhook from '../middleware/verifyPaystackWebhook.js';
+import config from '../config/env.js';
 
 const router = express.Router();
-
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || 'sk_test_your_key_here';
-
-const webhookParser = express.json({
-  verify: (req, res, buf) => {
-    req.rawBody = buf; // Attach the raw binary buffer to the request object
-  }
-});
 
 // ==========================================
 // STEP 1.2: PAYSTACK INITIALIZATION
@@ -49,7 +42,7 @@ router.post('/checkout', async (req, res) => {
         const response = await fetch('https://api.paystack.co/transaction/initialize', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
+                'Authorization': `Bearer ${config.PAYSTACK_SECRET_KEY}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(payload)
@@ -75,7 +68,7 @@ router.post('/checkout', async (req, res) => {
 // ==========================================
 // STEP 3: PAYSTACK WEBHOOK RECEIVER
 // ==========================================
-router.post('/paystack/webhook', webhookParser, verifyPaystack, (req, res) => {
+router.post('/webhook', verifyPaystackWebhook, (req, res) => {
   try {
     const event = req.body;
 
