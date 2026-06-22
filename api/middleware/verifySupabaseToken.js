@@ -1,11 +1,12 @@
 // SUPABASE AUTH MIDDLEWARE
 import { createClient } from '@supabase/supabase-js';
+import config from '../config/env.js';
 
 // Initialize the Supabase admin client (server-side only)
 // Uses the SERVICE_ROLE key so we can verify any user's JWT.
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  config.SUPABASE_URL,
+  config.SUPABASE_SERVICE_ROLE_KEY
 );
 
 
