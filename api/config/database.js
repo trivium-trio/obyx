@@ -3,6 +3,7 @@
 // Handles Sequelize initialization with proper SSL for Supabase managed Postgres.
 // =============================================================================
 import { Sequelize } from 'sequelize';
+import config from './env.js';
 
 /**
  * SSL Configuration for Supabase/Render managed PostgreSQL.
@@ -25,7 +26,7 @@ const sslConfig = (() => {
   return { ...base, rejectUnauthorized: false };
 })();
 
-const sequelize = new Sequelize(process.env.DATABASE_URL, {
+const sequelize = new Sequelize(config.DATABASE_URL, {
   dialect: 'postgres',
   logging: false,
   dialectOptions: {
