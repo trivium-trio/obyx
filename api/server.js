@@ -1,11 +1,9 @@
 // OBYX API SERVER — Entry Point
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import 'dotenv/config';
 import config from './config/env.js';
 
-// Load environment variables 
-dotenv.config();
 
 // Import routes
 import userRoutes from './routes/user.routes.js';
