@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowDown, ArrowRight, LayoutDashboard } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export function HeroSection() {
   return (
@@ -53,44 +53,30 @@ export function HeroSection() {
             The fastest on-ramp to the crypto economy.
           </motion.p>
 
-          {/* CTA: GET STARTED + Dashboard Access */}
+          {/* GET STARTED CTA */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.7 }}
-            className="flex flex-col items-start gap-4"
+            className="flex flex-col sm:flex-row items-start gap-4 mb-10"
           >
-            {/* Primary CTA Button */}
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-neon-orange to-neon-amber px-8 py-4 text-base font-semibold text-white shadow-[0_0_30px_rgba(255,107,0,0.2)] hover:shadow-[0_0_50px_rgba(255,107,0,0.35)] transition-shadow duration-300"
+            <Link href="/auth">
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="inline-flex items-center gap-2.5 rounded-2xl px-8 py-4 text-sm font-semibold bg-gradient-to-r from-neon-orange to-neon-amber text-white hover:shadow-[0_0_30px_rgba(255,107,0,0.35)] transition-shadow duration-300 cursor-pointer"
               >
                 GET STARTED
-                <ArrowRight className="h-4.5 w-4.5" />
-              </Link>
-            </motion.div>
-
-            {/* Dashboard sub-link */}
-            <Link
-              href="/dashboard"
-              className="group inline-flex items-center gap-2 text-sm text-white/35 hover:text-neon-orange/80 transition-colors duration-200 ml-1"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              <span>Go to Dashboard</span>
-              <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
+                <ArrowRight className="h-4 w-4" />
+              </motion.div>
             </Link>
           </motion.div>
 
-          {/* Currency indicators */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.9 }}
-            className="mt-12 flex items-center gap-8"
+            className="flex items-center gap-8"
           >
             <div className="flex items-center gap-3 text-white/30">
               <div className="flex -space-x-2">
@@ -108,23 +94,6 @@ export function HeroSection() {
           </motion.div>
         </div>
       </div>
-
-      {/* Scroll indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
-      >
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          className="flex flex-col items-center gap-2 text-white/20"
-        >
-          <span className="text-[10px] uppercase tracking-[0.2em]">Scroll</span>
-          <ArrowDown className="h-3.5 w-3.5" />
-        </motion.div>
-      </motion.div>
     </section>
   );
 }
