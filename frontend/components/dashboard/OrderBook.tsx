@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+
 import { mockBids, mockAsks } from "@/lib/mock-data";
 import type { OrderBookEntry } from "@/lib/mock-data";
 
