@@ -28,13 +28,17 @@ export function Footer() {
               Platform
             </h4>
             <ul className="space-y-2.5">
-              {["Home", "About", "Dashboard"].map((item) => (
-                <li key={item}>
+              {[
+                { label: "Home", href: "/" },
+                { label: "About", href: "/about" },
+                { label: "Talk to us", href: "/talk" },
+              ].map((item) => (
+                <li key={item.label}>
                   <Link
-                    href={item === "Home" ? "/" : `/${item.toLowerCase()}`}
+                    href={item.href}
                     className="text-sm text-white/40 hover:text-white/70 transition-colors"
                   >
-                    {item}
+                    {item.label}
                   </Link>
                 </li>
               ))}
