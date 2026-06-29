@@ -11,13 +11,11 @@ export default (sequelize) => {
     phoneNumber: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
       comment: "User's mobile money number (e.g., for M-Pesa/Paystack)"
     },
     walletAddress: {
       type: DataTypes.STRING,
       allowNull: true,
-      unique: true,
       set(val) {
         if (val) this.setDataValue('walletAddress', val.toLowerCase());
       }
@@ -25,6 +23,16 @@ export default (sequelize) => {
   }, {
     tableName: 'users',
     timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ['phoneNumber']
+      },
+      {
+        unique: true,
+        fields: ['walletAddress']
+      }
+    ]
   });
 
   return User;
