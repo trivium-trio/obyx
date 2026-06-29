@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
 import config from './config/env.js';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger.js';
 
 
 // Import routes
@@ -26,6 +28,10 @@ app.use(express.json({
     req.rawBody = buf;
   }
 }));
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
 app.get('/', (req, res) => {
   res.json({
     service: 'Obyx API',
