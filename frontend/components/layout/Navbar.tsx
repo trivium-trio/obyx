@@ -20,7 +20,7 @@ export function Navbar() {
   return (
     <>
       <motion.header
-        initial={{ y: -100, opacity: 0 }}
+        initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 100, damping: 20 }}
         className="fixed top-0 left-0 right-0 w-full z-50 bg-surface-950/80 backdrop-blur-md border-b border-white/[0.06]"
@@ -37,7 +37,7 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop Nav */}
+          {/* Desktop Nav — Top Right */}
           <div className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;

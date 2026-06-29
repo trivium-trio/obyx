@@ -25,7 +25,7 @@ const config = Object.freeze({
   FRONTEND_URL: optional('FRONTEND_URL', 'http://localhost:3000'),
 
   // --- Supabase ---
-  SUPABASE_URL:              required('SUPABASE_URL'),
+  SUPABASE_URL: required('SUPABASE_URL'),
   SUPABASE_SERVICE_ROLE_KEY: required('SUPABASE_SERVICE_ROLE_KEY'),
 
   // --- Database ---

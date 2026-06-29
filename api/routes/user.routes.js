@@ -4,6 +4,58 @@ import { User } from '../models/index.js';
 import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
 
 const router = Router();
+/**
+ * @openapi
+ * /user/link-wallet:
+ *   post:
+ *     summary: Link a wallet address to a user account
+ *     description: Associates an Ethereum wallet address with the authenticated user.
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - walletAddress
+ *             properties:
+ *               walletAddress:
+ *                 type: string
+ *                 description: The Ethereum wallet address to link (0x...)
+ *     responses:
+ *       200:
+ *         description: Wallet linked successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Wallet linked successfully.
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                     walletAddress:
+ *                       type: string
+ *       400:
+ *         description: Bad Request (Missing or invalid wallet address)
+ *       404:
+ *         description: User not found
+ *       409:
+ *         description: Conflict (Wallet already linked to another account)
+ *       500:
+ *         description: Internal server error
+ */
 router.post('/link-wallet', verifySupabaseToken, async (req, res) => {
   try {
     const { walletAddress } = req.body;

@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 
 export function HeroSection() {
   return (
@@ -72,7 +72,6 @@ export function HeroSection() {
             </Link>
           </motion.div>
 
-          {/* CTA Indicators */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
