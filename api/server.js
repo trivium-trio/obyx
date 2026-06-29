@@ -1,11 +1,11 @@
 // OBYX API SERVER — Entry Point
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import 'dotenv/config';
 import config from './config/env.js';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger.js';
 
-// Load environment variables 
-dotenv.config();
 
 // Import routes
 import userRoutes from './routes/user.routes.js';
@@ -28,6 +28,10 @@ app.use(express.json({
     req.rawBody = buf;
   }
 }));
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
 app.get('/', (req, res) => {
   res.json({
     service: 'Obyx API',
