@@ -1,54 +1,49 @@
 "use client";
 
-import { DashboardHero } from "@/components/dashboard/DashboardHero";
-import { TransactionStream } from "@/components/dashboard/TransactionStream";
+import { motion } from "framer-motion";
+import { SwapWidget } from "@/components/home/SwapWidget";
 import { StatusCards } from "@/components/dashboard/StatusCards";
-import { OrderBook } from "@/components/dashboard/OrderBook";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+
   return (
-    <div className="cyber-bg min-h-screen pt-24 pb-16">
-      {/* Scanline overlay */}
-      <div className="scanline-overlay" />
+    <div className="space-y-10">
+      {/* Welcome header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+          Welcome back
+        </h1>
+        <p className="text-sm text-white/35 font-mono">
+          {user?.email ?? "User"} · Ready to swap
+        </p>
+      </motion.div>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-6">
-        <DashboardHero />
+      {/* Swap Widget */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.1 }}
+      >
+        <SwapWidget />
+      </motion.div>
 
-        {/* Main grid */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Transaction Stream - 2 cols */}
-          <div className="lg:col-span-2">
-            <TransactionStream />
-          </div>
-
-          {/* Order Book - 1 col */}
-          <div className="lg:col-span-1">
-            <OrderBook />
-          </div>
-        </div>
-
-        {/* Status Cards */}
-        <div className="mt-6">
-          <StatusCards />
-        </div>
-
-        {/* Parental Advisory Badge */}
-        <div className="mt-12 flex justify-center">
-          <div className="inline-flex items-center gap-3 rounded-lg border-2 border-white/10 bg-surface-900/60 px-5 py-3">
-            <div className="border border-white/20 px-2 py-0.5">
-              <span className="text-[9px] font-bold text-white/50 uppercase tracking-wider leading-none block">
-                PARENTAL
-              </span>
-              <span className="text-[7px] font-bold text-white/50 uppercase tracking-wider leading-none block">
-                ADVISORY
-              </span>
-            </div>
-            <span className="text-xs font-mono text-white/30">
-              EXPLICIT VOLATILITY CONTENT
-            </span>
-          </div>
-        </div>
-      </div>
+      {/* Status Cards */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+      >
+        <h2 className="text-sm font-medium text-white/40 uppercase tracking-widest mb-5">
+          Market Status
+        </h2>
+        <StatusCards />
+      </motion.div>
     </div>
   );
 }
