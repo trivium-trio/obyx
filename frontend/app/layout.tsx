@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/AuthContext";
+import { DynamicProviderWrapper } from "@/components/providers/DynamicProviderWrapper";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import "./globals.css";
 
@@ -33,7 +34,9 @@ export default function RootLayout({
     >
       <body className="min-h-screen flex flex-col bg-surface-950 text-foreground">
         <AuthProvider>
-          <LayoutShell>{children}</LayoutShell>
+          <DynamicProviderWrapper>
+            <LayoutShell>{children}</LayoutShell>
+          </DynamicProviderWrapper>
         </AuthProvider>
       </body>
     </html>
