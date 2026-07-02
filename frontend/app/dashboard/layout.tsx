@@ -14,9 +14,12 @@ import {
   X,
   Loader2,
   ChevronLeft,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
+import { useWallet } from "@/lib/WalletContext";
+import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
 
 const sidebarLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -29,12 +32,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, loading, signOut } = useAuth();
+  const {
+    walletAddress,
+    circleAddress,
+    isConnected,
+    isInitializingCircle,
+    disconnect,
+  } = useWallet();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [connectingWallet, setConnectingWallet] = useState(false);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -43,20 +50,14 @@ export default function DashboardLayout({
     }
   }, [user, loading, router]);
 
-  const handleConnectWallet = () => {
-    setConnectingWallet(true);
-    // Simulated wallet connection — replace with real wallet integration
-    setTimeout(() => {
-      setWalletConnected(true);
-      setWalletAddress("0x1a2B...9f4E");
-      setConnectingWallet(false);
-    }, 1500);
+  const handleSignOut = async () => {
+    await disconnect();
+    signOut();
   };
 
-  const handleDisconnectWallet = () => {
-    setWalletConnected(false);
-    setWalletAddress(null);
-  };
+  // Format an address to short form: 0x1a2B...9f4E
+  const formatAddress = (addr: string) =>
+    `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
   // Loading state
   if (loading || !user) {
@@ -120,7 +121,7 @@ export default function DashboardLayout({
             </p>
           </div>
           <button
-            onClick={signOut}
+            onClick={handleSignOut}
             className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium text-white/35 hover:text-danger hover:bg-danger/5 transition-all duration-200"
           >
             <LogOut className="h-4 w-4" />
@@ -203,7 +204,7 @@ export default function DashboardLayout({
                 <button
                   onClick={() => {
                     setSidebarOpen(false);
-                    signOut();
+                    handleSignOut();
                   }}
                   className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium text-white/35 hover:text-danger hover:bg-danger/5 transition-all"
                 >
@@ -249,33 +250,58 @@ export default function DashboardLayout({
               </div>
             </div>
 
-            {/* Right: Wallet Button */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={
-                walletConnected ? handleDisconnectWallet : handleConnectWallet
-              }
-              disabled={connectingWallet}
-              className={cn(
-                "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300",
-                walletConnected
-                  ? "bg-success/10 border border-success/20 text-success hover:bg-success/15"
-                  : "bg-gradient-to-r from-neon-orange to-neon-amber text-white hover:shadow-[0_0_20px_rgba(255,107,0,0.25)]",
-                connectingWallet && "opacity-70 cursor-not-allowed"
+            {/* Right: Wallet Connection */}
+            <div className="flex items-center gap-3">
+              {/* Circle Smart Account badge */}
+              {isConnected && circleAddress && (
+                <motion.div
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="hidden sm:flex items-center gap-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 px-3 py-1.5"
+                >
+                  <Shield className="h-3 w-3 text-violet-400" />
+                  <span className="text-xs font-mono text-violet-400">
+                    {formatAddress(circleAddress)}
+                  </span>
+                </motion.div>
               )}
-            >
-              {connectingWallet ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+
+              {isConnected && isInitializingCircle && (
+                <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-1.5">
+                  <Loader2 className="h-3 w-3 animate-spin text-white/40" />
+                  <span className="text-xs font-mono text-white/40">
+                    Initializing SA…
+                  </span>
+                </div>
+              )}
+
+              {/* Dynamic Widget for wallet connection */}
+              {isConnected ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center gap-2 rounded-xl bg-success/10 border border-success/20 px-4 py-2.5 text-sm font-medium text-success"
+                >
+                  <Wallet className="h-4 w-4" />
+                  <span className="font-mono">
+                    {walletAddress ? formatAddress(walletAddress) : "Connected"}
+                  </span>
+                </motion.div>
               ) : (
-                <Wallet className="h-4 w-4" />
+                <DynamicWidget
+                  innerButtonComponent={
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-neon-orange to-neon-amber text-white hover:shadow-[0_0_20px_rgba(255,107,0,0.25)] transition-all duration-300 cursor-pointer"
+                    >
+                      <Wallet className="h-4 w-4" />
+                      Connect Wallet
+                    </motion.div>
+                  }
+                />
               )}
-              {connectingWallet
-                ? "Connecting..."
-                : walletConnected
-                ? walletAddress
-                : "Connect Wallet"}
-            </motion.button>
+            </div>
           </div>
         </header>
 
