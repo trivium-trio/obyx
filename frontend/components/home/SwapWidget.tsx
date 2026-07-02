@@ -2,10 +2,20 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpDown, Wallet, ChevronDown, Check } from "lucide-react";
+import {
+  ArrowUpDown,
+  Wallet,
+  ChevronDown,
+  Check,
+  Loader2,
+  ExternalLink,
+  Shield,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { currencies, tokens, conversionRates } from "@/lib/mock-data";
 import type { Currency, Token } from "@/lib/mock-data";
+import { useWallet } from "@/lib/WalletContext";
+import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 
 export function SwapWidget() {
   const [fiatCurrency, setFiatCurrency] = useState<Currency>(currencies[0]);
@@ -14,7 +24,23 @@ export function SwapWidget() {
   const [isReversed, setIsReversed] = useState(false);
   const [showFiatDropdown, setShowFiatDropdown] = useState(false);
   const [showCryptoDropdown, setShowCryptoDropdown] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
+
+  // Swap execution state
+  const [isSwapping, setIsSwapping] = useState(false);
+  const [swapResult, setSwapResult] = useState<{
+    txHash: string;
+    userOpHash: string;
+  } | null>(null);
+  const [swapError, setSwapError] = useState<string | null>(null);
+
+  // Wallet state
+  const {
+    isConnected,
+    isInitializingCircle,
+    circleAddress,
+    sendGaslessSwap,
+  } = useWallet();
+  const { setShowAuthFlow } = useDynamicContext();
 
   const rate = conversionRates[cryptoToken.symbol]?.[fiatCurrency.code] ?? 1;
 
@@ -36,10 +62,63 @@ export function SwapWidget() {
     setIsReversed((prev) => !prev);
   }, []);
 
-  const handleConnect = useCallback(() => {
-    setIsConnecting(true);
-    setTimeout(() => setIsConnecting(false), 2000);
-  }, []);
+  // Handle CTA button click
+  const handleCTAClick = useCallback(async () => {
+    // If not connected, open Dynamic wallet connect modal
+    if (!isConnected) {
+      setShowAuthFlow(true);
+      return;
+    }
+
+    // If Circle SA is still initializing, do nothing
+    if (isInitializingCircle || !circleAddress) return;
+
+    // Execute gasless swap
+    setIsSwapping(true);
+    setSwapError(null);
+    setSwapResult(null);
+
+    try {
+      const amt = parseFloat(fiatAmount.replace(/,/g, "")) || 0;
+      const cryptoAmount = isReversed ? amt : amt / rate;
+
+      // For demo: send to the Circle SA itself (self-transfer)
+      // In production, this would go to a liquidity pool or exchange contract
+      const result = await sendGaslessSwap(circleAddress, cryptoAmount);
+      setSwapResult(result);
+    } catch (err) {
+      console.error("Swap failed:", err);
+      setSwapError(
+        err instanceof Error ? err.message : "Swap failed. Please try again."
+      );
+    } finally {
+      setIsSwapping(false);
+    }
+  }, [
+    isConnected,
+    isInitializingCircle,
+    circleAddress,
+    fiatAmount,
+    isReversed,
+    rate,
+    sendGaslessSwap,
+    setShowAuthFlow,
+  ]);
+
+  // Determine button state
+  const getButtonState = () => {
+    if (!isConnected)
+      return { label: "Connect Wallet & Swap", disabled: false, showWallet: true };
+    if (isInitializingCircle)
+      return { label: "Initializing Smart Account…", disabled: true, showLoader: true };
+    if (!circleAddress)
+      return { label: "Smart Account Not Ready", disabled: true, showShield: true };
+    if (isSwapping)
+      return { label: "Executing Swap…", disabled: true, showLoader: true };
+    return { label: "Swap (Gasless)", disabled: false, showShield: true };
+  };
+
+  const buttonState = getButtonState();
 
   return (
     <section className="relative py-20 px-6">
@@ -228,16 +307,16 @@ export function SwapWidget() {
             </span>
             <span className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-success" />
-              Best rate
+              {isConnected ? "Base Sepolia" : "Best rate"}
             </span>
           </div>
 
           {/* ── CTA Button ── */}
           <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleConnect}
-            disabled={isConnecting}
+            whileHover={{ scale: buttonState.disabled ? 1 : 1.01 }}
+            whileTap={{ scale: buttonState.disabled ? 1 : 0.98 }}
+            onClick={handleCTAClick}
+            disabled={buttonState.disabled}
             className={cn(
               "w-full rounded-2xl py-4 text-sm font-semibold transition-all duration-300",
               "bg-gradient-to-r from-neon-orange to-neon-amber text-white",
@@ -246,23 +325,64 @@ export function SwapWidget() {
             )}
           >
             <span className="flex items-center justify-center gap-2">
-              <Wallet className="h-4 w-4" />
-              {isConnecting ? (
-                <motion.span
-                  animate={{ opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                >
-                  Connecting...
-                </motion.span>
+              {buttonState.showLoader ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : buttonState.showShield ? (
+                <Shield className="h-4 w-4" />
               ) : (
-                "Connect Wallet & Swap"
+                <Wallet className="h-4 w-4" />
               )}
+              {buttonState.label}
             </span>
           </motion.button>
 
+          {/* ── Swap Result ── */}
+          <AnimatePresence>
+            {swapResult && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mt-4 rounded-xl bg-success/10 border border-success/20 p-4"
+              >
+                <p className="text-xs text-success font-medium mb-2">
+                  ✓ Swap executed successfully (gasless)
+                </p>
+                <a
+                  href={`https://sepolia.basescan.org/tx/${swapResult.txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs font-mono text-success/70 hover:text-success transition-colors"
+                >
+                  <span>
+                    Tx: {swapResult.txHash.slice(0, 10)}...
+                    {swapResult.txHash.slice(-8)}
+                  </span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── Swap Error ── */}
+          <AnimatePresence>
+            {swapError && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mt-4 rounded-xl bg-danger/10 border border-danger/20 p-4"
+              >
+                <p className="text-xs text-danger">{swapError}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* ── Fee info ── */}
           <p className="text-center text-[11px] text-white/20 mt-3">
-            0.5% flat fee · Powered by on-chain liquidity
+            {isConnected
+              ? "0% gas fee · Sponsored by Circle Paymaster · Base Sepolia"
+              : "0.5% flat fee · Powered by on-chain liquidity"}
           </p>
         </motion.div>
       </div>
