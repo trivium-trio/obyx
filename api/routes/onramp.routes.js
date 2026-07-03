@@ -1,7 +1,7 @@
 
 // ON-RAMP ROUTES
 // Handles fiat → crypto conversion flow.
-import express, { Router } from 'express';
+import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { User, Transaction } from '../models/index.js';
 import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
