@@ -101,7 +101,8 @@ router.post('/charge-mpesa', async (req, res) => {
 
     } catch (error) {
         console.error('M-Pesa Charge Error:', error);
-        res.status(400).json({ error: error.message || 'Failed to initiate M-Pesa payment' });
+        const message = error instanceof Error ? error.message : 'Failed to initiate M-Pesa payment';
+        res.status(502).json({ success: false, error: message });
     }
 });
 
