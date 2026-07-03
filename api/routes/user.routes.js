@@ -130,7 +130,7 @@ router.post('/link-wallet', verifySupabaseToken, async (req, res) => {
 
 // --- GET /transactions Endpoint ---
 // Returns a mock array of transaction objects representing the user's ledger
-router.get('/transactions', async (req, res) => {
+router.get('/transactions', verifySupabaseToken, async (req, res) => {
   try {
     const mockTransactions = [
       {
