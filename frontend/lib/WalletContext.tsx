@@ -39,15 +39,7 @@ interface WalletContextType {
   disconnect: () => Promise<void>;
 }
 
-const WalletContext = createContext<WalletContextType>({
-  walletAddress: null,
-  circleAddress: null,
-  isConnected: false,
-  isInitializingCircle: false,
-  circleError: null,
-  sendGaslessSwap: async () => ({ userOpHash: "", txHash: "" }),
-  disconnect: async () => {},
-});
+const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const { primaryWallet, handleLogOut } = useDynamicContext();
