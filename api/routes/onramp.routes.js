@@ -142,7 +142,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
 
 // --- GET /status/:id Endpoint ---
 // Read-only endpoint allowing the frontend to poll for transaction status updates.
-router.get('/status/:id', verifySupabaseToken, async (req, res) => {
+router.post('/status/:id', verifySupabaseToken, async (req, res) => {
   try {
     const { id } = req.params;
     return res.status(200).json({
