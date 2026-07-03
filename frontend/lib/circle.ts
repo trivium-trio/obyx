@@ -15,9 +15,14 @@ import type { Account, WalletClient } from "viem";
 import { toAccount } from "viem/accounts";
 
 // ── Environment ──
-const CLIENT_KEY = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_KEY ?? "";
-const CLIENT_URL = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_URL ?? "";
+const CLIENT_KEY = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_KEY;
+const CLIENT_URL = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_URL;
 
+if (!CLIENT_KEY || !CLIENT_URL) {
+  throw new Error(
+    "Missing NEXT_PUBLIC_CIRCLE_CLIENT_KEY or NEXT_PUBLIC_CIRCLE_CLIENT_URL",
+  );
+}
 // ── Base Sepolia USDC contract ──
 // Circle testnet USDC on Base Sepolia
 export const USDC_CONTRACT_ADDRESS =
