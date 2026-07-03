@@ -20,10 +20,19 @@ export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAdd
     throw new Error('PAYSTACK_SECRET_KEY is not configured.');
   }
 
+  // Some legacy callers pass our internal transaction ID as the 4th argument.
+  // If a non-EVM value is provided, treat it as the Paystack `reference`.
+  const isEvmAddress = typeof walletAddress === 'string' && walletAddress.startsWith('0x');
+  const paystackReference = isEvmAddress ? undefined : walletAddress;
+  const walletAddrForMetadata = isEvmAddress
+    ? walletAddress
+    : '0x0000000000000000000000000000000000000000';
+
   const payload = {
     email: email,
     amount: Math.round(amountInKes * 100),
     currency: 'KES',
+    ...(paystackReference ? { reference: paystackReference } : {}),
     mobile_money: {
       phone: phoneNumber,
       provider: 'mpesa',
@@ -33,7 +42,7 @@ export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAdd
         {
           display_name: 'Wallet Address',
           variable_name: 'wallet_address',
-          value: walletAddress,
+          value: walletAddrForMetadata,
         },
       ],
     },
