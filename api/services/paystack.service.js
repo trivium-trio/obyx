@@ -57,18 +57,14 @@ export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAdd
     body: JSON.stringify(payload),
   });
 
-  // const result = await response.json();
-
-  // if (!result.status) {
-  //   throw new Error(result.message || 'Failed to initiate M-Pesa STK Push');
-  //  }
-
   const result = await response.json();
 
-  if (!result.status) {
-    // ADD THIS LOG:
-    console.error('❌ Paystack API Rejected Request:', JSON.stringify(result, null, 2));
-    throw new Error(result.message || 'Failed to initiate M-Pesa STK Push');
+  if (!response.ok || !result.status) {
+    console.error("[PAYSTACK] Charge request failed", {
+      httpStatus: response.status,
+      message: result?.message,
+    });
+    throw new Error(result?.message || "Failed to initiate M-Pesa STK Push");
   }
 
   return result.data;
