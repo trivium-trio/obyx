@@ -113,8 +113,12 @@ export const verifyPayment = async (reference) => {
 
   const result = await response.json();
 
-  if (!result.status) {
-    throw new Error(result.message || 'Payment verification failed');
+  if (!response.ok || !result.status) {
+    console.error("[PAYSTACK] Verification request failed", {
+      httpStatus: response.status,
+      message: result?.message,
+    });
+    throw new Error(result?.message || "Payment verification failed");
   }
 
   return {
