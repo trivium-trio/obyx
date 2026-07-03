@@ -80,12 +80,11 @@ export function SwapWidget() {
 
     try {
       const amt = parseFloat(fiatAmount.replace(/,/g, "")) || 0;
-      const cryptoAmount = isReversed ? amt : amt / rate;
+      const usdcAmount = amt / rate;
 
       // For demo: send to the Circle SA itself (self-transfer)
       // In production, this would go to a liquidity pool or exchange contract
-      const result = await sendGaslessSwap(circleAddress, cryptoAmount);
-      setSwapResult(result);
+      const result = await sendGaslessSwap(circleAddress, usdcAmount);
     } catch (err) {
       console.error("Swap failed:", err);
       setSwapError(
