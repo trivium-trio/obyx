@@ -1,5 +1,5 @@
 // USER ROUTES
-import express, { Router } from 'express';
+import { Router } from 'express';
 import { User } from '../models/index.js';
 import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
 
