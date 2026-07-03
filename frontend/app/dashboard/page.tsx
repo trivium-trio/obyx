@@ -39,17 +39,19 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2 rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-2.5">
               <Wallet className="h-3.5 w-3.5 text-neon-orange" />
               <span className="text-xs text-white/40 mr-1">EOA</span>
-              <a
-                href={`https://sepolia.basescan.org/address/${walletAddress}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-mono text-white/70 hover:text-neon-orange transition-colors flex items-center gap-1"
-              >
-                {walletAddress
-                  ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-                  : "—"}
-                <ExternalLink className="h-2.5 w-2.5" />
-              </a>
+              {walletAddress ? (
+                <a
+                  href={`https://sepolia.basescan.org/address/${walletAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-mono text-white/70 hover:text-neon-orange transition-colors flex items-center gap-1"
+                >
+                  {`${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`}
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              ) : (
+                <span className="text-xs font-mono text-white/40">—</span>
+              )}
             </div>
 
             {/* Circle Smart Account */}
