@@ -14,25 +14,17 @@ import config from '../config/env.js';
  * @param {string} walletAddress - Target EVM wallet address for metadata
  * @returns {Promise<object>}    - Paystack success data (reference, display_text, etc.)
  */
-export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAddress) => {
+export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAddress, reference = undefined) => {
   const secretKey = process.env.PAYSTACK_SECRET_KEY || config.PAYSTACK_SECRET_KEY;
   if (!secretKey) {
     throw new Error('PAYSTACK_SECRET_KEY is not configured.');
   }
 
-  // Some legacy callers pass our internal transaction ID as the 4th argument.
-  // If a non-EVM value is provided, treat it as the Paystack `reference`.
-  const isEvmAddress = typeof walletAddress === 'string' && walletAddress.startsWith('0x');
-  const paystackReference = isEvmAddress ? undefined : walletAddress;
-  const walletAddrForMetadata = isEvmAddress
-    ? walletAddress
-    : '0x0000000000000000000000000000000000000000';
-
   const payload = {
     email: email,
     amount: Math.round(amountInKes * 100),
     currency: 'KES',
-    ...(paystackReference ? { reference: paystackReference } : {}),
+    ...(reference ? { reference: reference } : {}),
     mobile_money: {
       phone: phoneNumber,
       provider: 'mpesa',
@@ -42,11 +34,12 @@ export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAdd
         {
           display_name: 'Wallet Address',
           variable_name: 'wallet_address',
-          value: walletAddrForMetadata,
+          value: walletAddress || '0x0000000000000000000000000000000000000000',
         },
       ],
     },
   };
+
 
   const response = await fetch('https://api.paystack.co/charge', {
     method: 'POST',
@@ -80,7 +73,7 @@ export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAdd
  * @returns {Promise<object>}  - Paystack API response formatted for legacy callers
  */
 export const initiateSTKPush = async (phoneNumber, amount, reference) => {
-  const data = await triggerMpesaSTK('onramp@obyx.co', amount, phoneNumber, reference || '0x0000000000000000000000000000000000000000');
+  const data = await triggerMpesaSTK('onramp@obyx.co', amount, phoneNumber, '0x0000000000000000000000000000000000000000', reference);
   return {
     status: true,
     message: 'Charge attempted',
