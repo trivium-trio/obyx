@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { currencies, tokens, conversionRates } from "@/lib/mock-data";
 import type { Currency, Token } from "@/lib/mock-data";
 import { useWallet } from "@/lib/WalletContext";
+import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 
 export function SwapWidget() {
@@ -34,13 +35,9 @@ export function SwapWidget() {
   const [swapError, setSwapError] = useState<string | null>(null);
 
   // Wallet state
-  const {
-    isConnected,
-    isInitializingCircle,
-    circleAddress,
-    sendGaslessSwap,
-  } = useWallet();
+  const { isConnected, walletAddress } = useWallet();
   const { setShowAuthFlow } = useDynamicContext();
+  const { recordTransaction } = useTransactionHistory();
 
   const rate = conversionRates[cryptoToken.symbol]?.[fiatCurrency.code] ?? 1;
 
@@ -70,10 +67,7 @@ export function SwapWidget() {
       return;
     }
 
-    // If Circle SA is still initializing, do nothing
-    if (isInitializingCircle || !circleAddress) return;
-
-    // Execute gasless swap
+    // Execute swap
     setIsSwapping(true);
     setSwapError(null);
     setSwapResult(null);
@@ -82,10 +76,25 @@ export function SwapWidget() {
       const amt = parseFloat(fiatAmount.replace(/,/g, "")) || 0;
       const cryptoAmount = isReversed ? amt : amt / rate;
 
-      // For demo: send to the Circle SA itself (self-transfer)
-      // In production, this would go to a liquidity pool or exchange contract
-      const result = await sendGaslessSwap(circleAddress, cryptoAmount);
+      // Mock delay
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const mockTxHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+      
+      const result = { txHash: mockTxHash, userOpHash: "" };
       setSwapResult(result);
+
+      // Record the transaction in history
+      recordTransaction({
+        type: isReversed ? "OFFRAMP" : "ONRAMP",
+        fiatAmount: isReversed ? cryptoAmount : amt,
+        fiatCurrency: fiatCurrency.code,
+        cryptoAmount: isReversed ? amt : cryptoAmount,
+        cryptoCurrency: cryptoToken.symbol,
+        exchangeRate: rate,
+        txHash: result.txHash,
+        walletAddress: walletAddress ?? undefined,
+        cryptoNetwork: "Base Sepolia",
+      });
     } catch (err) {
       console.error("Swap failed:", err);
       setSwapError(
@@ -96,26 +105,23 @@ export function SwapWidget() {
     }
   }, [
     isConnected,
-    isInitializingCircle,
-    circleAddress,
     fiatAmount,
     isReversed,
     rate,
-    sendGaslessSwap,
     setShowAuthFlow,
+    recordTransaction,
+    fiatCurrency.code,
+    cryptoToken.symbol,
+    walletAddress,
   ]);
 
   // Determine button state
   const getButtonState = () => {
     if (!isConnected)
       return { label: "Connect Wallet & Swap", disabled: false, showWallet: true };
-    if (isInitializingCircle)
-      return { label: "Initializing Smart Account…", disabled: true, showLoader: true };
-    if (!circleAddress)
-      return { label: "Smart Account Not Ready", disabled: true, showShield: true };
     if (isSwapping)
       return { label: "Executing Swap…", disabled: true, showLoader: true };
-    return { label: "Swap (Gasless)", disabled: false, showShield: true };
+    return { label: "Swap", disabled: false, showShield: false };
   };
 
   const buttonState = getButtonState();
@@ -327,8 +333,6 @@ export function SwapWidget() {
             <span className="flex items-center justify-center gap-2">
               {buttonState.showLoader ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
-              ) : buttonState.showShield ? (
-                <Shield className="h-4 w-4" />
               ) : (
                 <Wallet className="h-4 w-4" />
               )}
@@ -346,7 +350,7 @@ export function SwapWidget() {
                 className="mt-4 rounded-xl bg-success/10 border border-success/20 p-4"
               >
                 <p className="text-xs text-success font-medium mb-2">
-                  ✓ Swap executed successfully (gasless)
+                  ✓ Swap executed successfully
                 </p>
                 <a
                   href={`https://sepolia.basescan.org/tx/${swapResult.txHash}`}
@@ -378,10 +382,9 @@ export function SwapWidget() {
             )}
           </AnimatePresence>
 
-          {/* ── Fee info ── */}
           <p className="text-center text-[11px] text-white/20 mt-3">
             {isConnected
-              ? "0% gas fee · Sponsored by Circle Paymaster · Base Sepolia"
+              ? "0.5% flat fee · Powered by on-chain liquidity · Base Sepolia"
               : "0.5% flat fee · Powered by on-chain liquidity"}
           </p>
         </motion.div>

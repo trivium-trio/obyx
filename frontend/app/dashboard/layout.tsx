@@ -34,9 +34,7 @@ export default function DashboardLayout({
   const { user, loading, signOut } = useAuth();
   const {
     walletAddress,
-    circleAddress,
     isConnected,
-    isInitializingCircle,
     disconnect,
   } = useWallet();
   const router = useRouter();
@@ -252,28 +250,6 @@ export default function DashboardLayout({
 
             {/* Right: Wallet Connection */}
             <div className="flex items-center gap-3">
-              {/* Circle Smart Account badge */}
-              {isConnected && circleAddress && (
-                <motion.div
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="hidden sm:flex items-center gap-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 px-3 py-1.5"
-                >
-                  <Shield className="h-3 w-3 text-violet-400" />
-                  <span className="text-xs font-mono text-violet-400">
-                    {formatAddress(circleAddress)}
-                  </span>
-                </motion.div>
-              )}
-
-              {isConnected && isInitializingCircle && (
-                <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-1.5">
-                  <Loader2 className="h-3 w-3 animate-spin text-white/40" />
-                  <span className="text-xs font-mono text-white/40">
-                    Initializing SA…
-                  </span>
-                </div>
-              )}
 
               {/* Dynamic Widget for wallet connection */}
               {isConnected ? (

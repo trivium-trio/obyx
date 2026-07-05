@@ -61,6 +61,17 @@ export default (sequelize) => {
       type: DataTypes.STRING,
       allowNull: true,
       comment: "Blockchain transaction hash from Base Sepolia"
+    },
+    walletAddress: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "The destination/source wallet address for the crypto"
+    },
+    cryptoNetwork: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: 'Base Sepolia',
+      comment: "The blockchain network used"
     }
   }, {
     tableName: 'transactions',
