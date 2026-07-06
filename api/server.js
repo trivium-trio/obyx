@@ -30,8 +30,8 @@ app.use(express.json({
 }));
 
 // Swagger Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
+app.use('/api/v1/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api/v1/api-docs.json', (req, res) => res.json(swaggerSpec));
 app.get('/', (req, res) => {
   res.json({
     service: 'Obyx API',
