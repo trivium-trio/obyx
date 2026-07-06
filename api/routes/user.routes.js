@@ -128,4 +128,46 @@ router.post('/link-wallet', verifySupabaseToken, async (req, res) => {
   }
 });
 
+// --- GET /transactions Endpoint ---
+// Returns a mock array of transaction objects representing the user's ledger
+router.get('/transactions', verifySupabaseToken, async (req, res) => {
+  try {
+    const mockTransactions = [
+      {
+        id: 'tx_01h9y4a2k8m',
+        type: 'ONRAMP',
+        status: 'COMPLETED',
+        fiatAmount: 13000,
+        fiatCurrency: 'KES',
+        cryptoAmount: 100,
+        cryptoCurrency: 'USDC',
+        exchangeRate: 130.00,
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+      },
+      {
+        id: 'tx_02k8m5b3p9n',
+        type: 'ONRAMP',
+        status: 'PENDING',
+        fiatAmount: 6500,
+        fiatCurrency: 'KES',
+        cryptoAmount: 50,
+        cryptoCurrency: 'USDC',
+        exchangeRate: 130.00,
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    return res.status(200).json({
+      success: true,
+      data: mockTransactions,
+    });
+  } catch (err) {
+    console.error('[USER] Error fetching transactions:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error while fetching transactions.',
+    });
+  }
+});
+
 export default router;
