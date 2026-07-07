@@ -5,142 +5,9 @@ import { triggerMpesaSTK } from '../services/paystack.service.js';
 
 const router = express.Router();
 
-// ==========================================
-// STEP 1.2: PAYSTACK INITIALIZATION
-// ==========================================
-
-/**
- * @openapi
- * /paystack/checkout:
- *   post:
- *     summary: Initialize Paystack checkout
- *     description: >
- *       Creates a Paystack transaction and returns a hosted checkout URL.
- *       The client should redirect the user to the checkout_url to complete payment.
- *     tags:
- *       - Paystack
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - amountInKes
- *               - walletAddress
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 description: User's email address for the Paystack transaction
- *                 example: user@example.com
- *               amountInKes:
- *                 type: number
- *                 description: Payment amount in KES
- *                 example: 13000
- *               walletAddress:
- *                 type: string
- *                 description: EVM wallet address to receive the crypto
- *                 example: '0x1234567890abcdef1234567890abcdef12345678'
- *     responses:
- *       200:
- *         description: Checkout session created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 checkout_url:
- *                   type: string
- *                   format: uri
- *                   description: Paystack hosted checkout URL
- *                   example: https://checkout.paystack.com/abc123
- *                 reference:
- *                   type: string
- *                   description: Unique Paystack transaction reference
- *                   example: abc123xyz
- *       400:
- *         description: Bad Request – missing or invalid parameters
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Valid email is required
- *       500:
- *         description: Internal server error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Internal Server Error
- */
-router.post('/checkout', async (req, res) => {
-    try {
-        const { email, amountInKes, walletAddress } = req.body;
-
-        if (!email || typeof email !== 'string' || !email.includes('@')) {
-            return res.status(400).json({ error: 'Valid email is required' });
-        }
-
-        if (!amountInKes || typeof amountInKes !== 'number' || amountInKes <= 0) {
-            return res.status(400).json({ error: 'Amount must be a positive number' });
-        }
-
-        if (!walletAddress || typeof walletAddress !== 'string' || !walletAddress.startsWith('0x')) {
-            return res.status(400).json({ error: 'Valid EVM wallet address required' });
-        }
-
-        const payload = {
-            email: email,
-            amount: amountInKes * 100, 
-            currency: 'KES',
-            channels: ['mobile_money'], 
-            metadata: {
-                custom_fields: [
-                    {
-                        display_name: 'Wallet Address',
-                        variable_name: 'wallet_address',
-                        value: walletAddress 
-                    }
-                ]
-            }
-        };
-
-        const response = await fetch('https://api.paystack.co/transaction/initialize', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${config.PAYSTACK_SECRET_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        const result = await response.json();
-
-        if (!result.status) {
-            return res.status(400).json({ error: result.message });
-        }
-
-        res.status(200).json({
-            checkout_url: result.data.authorization_url,
-            reference: result.data.reference
-        });
-
-    } catch (error) {
-        console.error('Checkout Initialization Error:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
 
 // ==========================================
-// STEP 2: M-PESA STK PUSH CHARGE
+// STEP 1: M-PESA STK PUSH CHARGE
 // ==========================================
 
 /**
@@ -267,7 +134,7 @@ router.post('/charge-mpesa', async (req, res) => {
 });
 
 // ==========================================
-// STEP 3: PAYSTACK WEBHOOK RECEIVER
+// STEP 2: PAYSTACK WEBHOOK RECEIVER
 // ==========================================
 
 /**
