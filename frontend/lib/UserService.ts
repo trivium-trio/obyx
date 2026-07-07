@@ -116,4 +116,26 @@ export const UserService = {
       return null;
     }
   },
+
+  async linkWallet(walletAddress: string): Promise<boolean> {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/user/link-wallet`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ walletAddress }),
+      });
+
+      if (!res.ok) {
+        console.error("Failed to link wallet:", res.statusText);
+        return false;
+      }
+
+      const json = await res.json();
+      return json.success ?? false;
+    } catch (err) {
+      console.error("UserService.linkWallet error:", err);
+      return false;
+    }
+  },
 };
