@@ -9,6 +9,73 @@
 
 /**
  * Initiate an STK Push (Mobile Money prompt) to the user's phone.
+// PAYSTACK SERVICE
+// This module handles communication with Paystack's payment APIs, including
+// M-Pesa STK Push charges and payment verifications.
+// =============================================================================
+import config from '../config/env.js';
+
+/**
+ * Trigger a real M-Pesa STK Push via Paystack Charge API.
+ *
+ * @param {string} email         - User email address
+ * @param {number} amountInKes   - Amount in KES to charge
+ * @param {string} phoneNumber   - User's M-Pesa phone number
+ * @param {string} walletAddress - Target EVM wallet address for metadata
+ * @returns {Promise<object>}    - Paystack success data (reference, display_text, etc.)
+ */
+export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAddress, reference = undefined) => {
+  const secretKey = process.env.PAYSTACK_SECRET_KEY || config.PAYSTACK_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('PAYSTACK_SECRET_KEY is not configured.');
+  }
+
+  const payload = {
+    email: email,
+    amount: Math.round(amountInKes * 100),
+    currency: 'KES',
+    ...(reference ? { reference: reference } : {}),
+    mobile_money: {
+      phone: phoneNumber,
+      provider: 'mpesa',
+    },
+    metadata: {
+      custom_fields: [
+        {
+          display_name: 'Wallet Address',
+          variable_name: 'wallet_address',
+          value: walletAddress || '0x0000000000000000000000000000000000000000',
+        },
+      ],
+    },
+  };
+
+
+  const response = await fetch('https://api.paystack.co/charge', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${secretKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || !result.status) {
+    console.error("[PAYSTACK] Charge request failed", {
+      httpStatus: response.status,
+      message: result?.message,
+    });
+    throw new Error(result?.message || "Failed to initiate M-Pesa STK Push");
+  }
+
+  return result.data;
+};
+
+/**
+ * Initiate an STK Push (Mobile Money prompt) to the user's phone.
+ * Maintained for backwards compatibility with existing onramp routes.
  *
  * @param {string} phoneNumber - User's mobile money number (e.g., "254712345678")
  * @param {number} amount      - Amount in KES to charge
@@ -26,12 +93,18 @@ export const initiateSTKPush = async (phoneNumber, amount, reference) => {
   // Simulate a short network delay
   await new Promise((resolve) => setTimeout(resolve, 200));
 
+ * @returns {Promise<object>}  - Paystack API response formatted for legacy callers
+ */
+export const initiateSTKPush = async (phoneNumber, amount, reference) => {
+  const data = await triggerMpesaSTK('onramp@obyx.co', amount, phoneNumber, '0x0000000000000000000000000000000000000000', reference);
   return {
     status: true,
     message: 'Charge attempted',
     data: {
       reference: reference, // In production, Paystack generates this
       status: 'send_otp',   // Paystack's intermediate status
+      reference: data.reference,
+      status: data.status || 'send_otp',
     },
   };
 };
@@ -50,6 +123,30 @@ export const verifyPayment = async (reference) => {
   console.log(`[PAYSTACK MOCK] Verifying payment: ${reference}`);
 
   await new Promise((resolve) => setTimeout(resolve, 100));
+ */
+export const verifyPayment = async (reference) => {
+  const secretKey = process.env.PAYSTACK_SECRET_KEY || config.PAYSTACK_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('PAYSTACK_SECRET_KEY is not configured.');
+  }
+
+  const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${secretKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || !result.status) {
+    console.error("[PAYSTACK] Verification request failed", {
+      httpStatus: response.status,
+      message: result?.message,
+    });
+    throw new Error(result?.message || "Payment verification failed");
+  }
 
   return {
     status: true,
@@ -58,6 +155,10 @@ export const verifyPayment = async (reference) => {
       amount: 0,       // Amount in kobo/pesewas — Friend 2 will parse this
       currency: 'KES',
       reference,
+      status: result.data.status,
+      amount: result.data.amount / 100,
+      currency: result.data.currency,
+      reference: result.data.reference,
     },
   };
 };
