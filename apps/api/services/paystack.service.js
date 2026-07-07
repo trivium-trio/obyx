@@ -124,3 +124,67 @@ export const verifyPayment = async (reference) => {
     },
   };
 };
+
+/**
+ * Create a Transfer Recipient for Mobile Money payouts.
+ */
+export const createTransferRecipient = async (name, phoneNumber) => {
+  const secretKey = process.env.PAYSTACK_SECRET_KEY || config.PAYSTACK_SECRET_KEY;
+  if (!secretKey) throw new Error('PAYSTACK_SECRET_KEY is not configured.');
+
+  const payload = {
+    type: 'mobile_money',
+    name: name,
+    account_number: phoneNumber,
+    bank_code: 'MPESA',
+    currency: 'KES',
+  };
+
+  const response = await fetch('https://api.paystack.co/transferrecipient', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${secretKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.status) {
+    throw new Error(result?.message || 'Failed to create transfer recipient');
+  }
+
+  return result.data;
+};
+
+/**
+ * Initiate a Transfer (Payout) to a recipient.
+ */
+export const initiateTransfer = async (amountInKes, recipientCode, reference) => {
+  const secretKey = process.env.PAYSTACK_SECRET_KEY || config.PAYSTACK_SECRET_KEY;
+  if (!secretKey) throw new Error('PAYSTACK_SECRET_KEY is not configured.');
+
+  const payload = {
+    source: 'balance',
+    amount: Math.round(amountInKes * 100),
+    recipient: recipientCode,
+    reason: 'Obyx Off-ramp Payout',
+    reference: reference,
+  };
+
+  const response = await fetch('https://api.paystack.co/transfer', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${secretKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.status) {
+    throw new Error(result?.message || 'Failed to initiate transfer');
+  }
+
+  return result.data;
+};

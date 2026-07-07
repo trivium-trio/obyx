@@ -12,6 +12,7 @@ import userRoutes from './routes/user.routes.js';
 import onrampRoutes from './routes/onramp.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import paystackRoutes from './routes/paystack.routes.js';
+import offrampRoutes from './routes/offramp.routes.js';
 
 // Import database
 import { sequelize } from './models/index.js';
@@ -43,6 +44,7 @@ app.get('/', (req, res) => {
 app.use('/api/v1/user', userRoutes);
 
 app.use('/api/v1/onramp', onrampRoutes);
+app.use('/api/v1/offramp', offrampRoutes);
 
 app.use('/api/v1/paystack', paystackRoutes);
 

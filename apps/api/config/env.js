@@ -34,6 +34,12 @@ const config = Object.freeze({
   // --- Paystack ---
   PAYSTACK_SECRET_KEY: required('PAYSTACK_SECRET_KEY'),
   PAYSTACK_PUBLIC_KEY: optional('PAYSTACK_PUBLIC_KEY', ''),
+
+  // --- Circle (Testnet) ---
+  CIRCLE_TESTNET_API_KEY: required('CIRCLE_TESTNET_API_KEY'),
+  CIRCLE_TESTNET_ENTITY_SECRET: required('CIRCLE_TESTNET_ENTITY_SECRET'),
+  CIRCLE_TESTNET_WALLET_ID: required('CIRCLE_TESTNET_WALLET_ID'),
+  CIRCLE_TESTNET_WALLET_SET_ID: optional('CIRCLE_TESTNET_WALLET_SET_ID', ''),
 });
 
 export default config;

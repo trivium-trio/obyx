@@ -106,33 +106,4 @@ router.post('/charge-mpesa', async (req, res) => {
     }
 });
 
-// ==========================================
-// STEP 3: PAYSTACK WEBHOOK RECEIVER
-// ==========================================
-router.post('/webhook', verifyPaystackWebhook, (req, res) => {
-  try {
-    const event = req.body;
-
-    if (event.event === 'charge.success') {
-      const amountPaidInKes = event.data.amount / 100; 
-      const transactionRef = event.data.reference;
-      
-      const walletAddress = event.data.metadata?.custom_fields?.find(
-        field => field.variable_name === 'wallet_address'
-      )?.value;
-
-      console.log(`M-Pesa Payment Confirmed!`);
-      console.log(`Amount: ${amountPaidInKes} KES`);
-      console.log(`Target Wallet: ${walletAddress}`);
-      console.log(`Ref: ${transactionRef}`);
-    }
-
-    res.status(200).send('Webhook Received');
-
-  } catch (error) {
-    console.error('Webhook Processing Error:', error);
-    res.status(500).send('Internal Server Error');
-  }
-});
-
 export default router;

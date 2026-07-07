@@ -129,37 +129,22 @@ router.post('/link-wallet', verifySupabaseToken, async (req, res) => {
 });
 
 // --- GET /transactions Endpoint ---
-// Returns a mock array of transaction objects representing the user's ledger
+// Returns real transactions for the authenticated user
 router.get('/transactions', verifySupabaseToken, async (req, res) => {
   try {
-    const mockTransactions = [
-      {
-        id: 'tx_01h9y4a2k8m',
-        type: 'ONRAMP',
-        status: 'COMPLETED',
-        fiatAmount: 13000,
-        fiatCurrency: 'KES',
-        cryptoAmount: 100,
-        cryptoCurrency: 'USDC',
-        exchangeRate: 130.00,
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-      },
-      {
-        id: 'tx_02k8m5b3p9n',
-        type: 'ONRAMP',
-        status: 'PENDING',
-        fiatAmount: 6500,
-        fiatCurrency: 'KES',
-        cryptoAmount: 50,
-        cryptoCurrency: 'USDC',
-        exchangeRate: 130.00,
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    // Import Transaction locally if not imported at top, wait it is imported at top
+    // import { Transaction } from '../models/index.js'; // already imported at top!
+    const { Transaction } = await import('../models/index.js');
+    
+    const transactions = await Transaction.findAll({
+      where: { userId: req.user.id },
+      order: [['createdAt', 'DESC']],
+      limit: 50,
+    });
 
     return res.status(200).json({
       success: true,
-      data: mockTransactions,
+      data: transactions,
     });
   } catch (err) {
     console.error('[USER] Error fetching transactions:', err);

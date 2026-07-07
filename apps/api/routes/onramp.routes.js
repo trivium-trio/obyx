@@ -145,12 +145,26 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
 router.get('/status/:id', verifySupabaseToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const transaction = await Transaction.findByPk(id);
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        error: 'Transaction not found',
+      });
+    }
+
+    // Only allow users to see their own transactions
+    if (transaction.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized',
+      });
+    }
+
     return res.status(200).json({
-      id: id,
-      status: 'pending',
-      amount: 5000,
-      currency: 'KES',
-      createdAt: new Date(),
+      success: true,
+      data: transaction,
     });
   } catch (err) {
     console.error(`[ONRAMP] Error fetching status for transaction ${req.params.id}:`, err);
