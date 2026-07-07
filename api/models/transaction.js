@@ -72,6 +72,16 @@ export default (sequelize) => {
       allowNull: true,
       defaultValue: 'Base Sepolia',
       comment: "The blockchain network used"
+    },
+    circleTransactionId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Circle's internal transaction ID, returned immediately on createTransaction (before on-chain confirmation)"
+    },
+    lastError: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Most recent error message if the transaction moved to FAILED"
     }
   }, {
     tableName: 'transactions',
