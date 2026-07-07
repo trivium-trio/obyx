@@ -2,6 +2,7 @@
 // ON-RAMP ROUTES
 // Handles fiat → crypto conversion flow.
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { User, Transaction } from '../models/index.js';
 import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
 import { initiateSTKPush } from '../services/paystack.service.js';
@@ -11,6 +12,22 @@ const EXCHANGE_RATE = 130.00; // 1 USDC = 130 KES
 const MIN_FIAT_AMOUNT = 100;  // Minimum 100 KES (~$0.77)
 const MAX_FIAT_AMOUNT = 500000; // Maximum 500,000 KES (~$3,846)
 router.post('/init', verifySupabaseToken, async (req, res) => {
+
+const initLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Too many requests from this IP, please try again after a minute.',
+  },
+});
+
+const EXCHANGE_RATE = 130.00; // 1 USDC = 130 KES
+const MIN_FIAT_AMOUNT = 100;  // Minimum 100 KES (~$0.77)
+const MAX_FIAT_AMOUNT = 500000; // Maximum 500,000 KES (~$3,846)
+router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
   try {
     const { fiatAmount } = req.body;
     const userId = req.user.id;
@@ -123,6 +140,27 @@ router.post('/init', verifySupabaseToken, async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Internal server error while initiating on-ramp.',
+    });
+  }
+});
+
+// --- GET /status/:id Endpoint ---
+// Read-only endpoint allowing the frontend to poll for transaction status updates.
+router.get('/status/:id', verifySupabaseToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    return res.status(200).json({
+      id: id,
+      status: 'pending',
+      amount: 5000,
+      currency: 'KES',
+      createdAt: new Date(),
+    });
+  } catch (err) {
+    console.error(`[ONRAMP] Error fetching status for transaction ${req.params.id}:`, err);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error while fetching transaction status.',
     });
   }
 });

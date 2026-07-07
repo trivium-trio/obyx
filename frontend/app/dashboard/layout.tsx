@@ -50,7 +50,7 @@ export default function DashboardLayout({
 
   const handleSignOut = async () => {
     await disconnect();
-    signOut();
+    await signOut();
   };
 
   // Format an address to short form: 0x1a2B...9f4E

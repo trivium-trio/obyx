@@ -26,6 +26,7 @@ const WalletContext = createContext<WalletContextType>({
   isConnected: false,
   disconnect: async () => {},
 });
+const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const { primaryWallet, handleLogOut } = useDynamicContext();
