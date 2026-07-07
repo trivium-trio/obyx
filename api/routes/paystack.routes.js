@@ -8,6 +8,79 @@ const router = express.Router();
 // ==========================================
 // STEP 1.2: PAYSTACK INITIALIZATION
 // ==========================================
+
+/**
+ * @openapi
+ * /paystack/checkout:
+ *   post:
+ *     summary: Initialize Paystack checkout
+ *     description: >
+ *       Creates a Paystack transaction and returns a hosted checkout URL.
+ *       The client should redirect the user to the checkout_url to complete payment.
+ *     tags:
+ *       - Paystack
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - amountInKes
+ *               - walletAddress
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address for the Paystack transaction
+ *                 example: user@example.com
+ *               amountInKes:
+ *                 type: number
+ *                 description: Payment amount in KES
+ *                 example: 13000
+ *               walletAddress:
+ *                 type: string
+ *                 description: EVM wallet address to receive the crypto
+ *                 example: '0x1234567890abcdef1234567890abcdef12345678'
+ *     responses:
+ *       200:
+ *         description: Checkout session created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 checkout_url:
+ *                   type: string
+ *                   format: uri
+ *                   description: Paystack hosted checkout URL
+ *                   example: https://checkout.paystack.com/abc123
+ *                 reference:
+ *                   type: string
+ *                   description: Unique Paystack transaction reference
+ *                   example: abc123xyz
+ *       400:
+ *         description: Bad Request – missing or invalid parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Valid email is required
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Internal Server Error
+ */
 router.post('/checkout', async (req, res) => {
     try {
         const { email, amountInKes, walletAddress } = req.body;
@@ -69,6 +142,93 @@ router.post('/checkout', async (req, res) => {
 // ==========================================
 // STEP 2: M-PESA STK PUSH CHARGE
 // ==========================================
+
+/**
+ * @openapi
+ * /paystack/charge-mpesa:
+ *   post:
+ *     summary: Initiate M-Pesa STK Push payment
+ *     description: >
+ *       Triggers an M-Pesa STK (Sim Toolkit) push to the user's phone
+ *       via Paystack. The user receives a payment prompt on their device
+ *       to authorize the transaction.
+ *     tags:
+ *       - Paystack
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - amountInKes
+ *               - phoneNumber
+ *               - walletAddress
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *                 example: user@example.com
+ *               amountInKes:
+ *                 type: number
+ *                 description: Payment amount in KES
+ *                 example: 13000
+ *               phoneNumber:
+ *                 type: string
+ *                 description: M-Pesa registered phone number
+ *                 example: '+254712345678'
+ *               walletAddress:
+ *                 type: string
+ *                 description: EVM wallet address to receive the crypto
+ *                 example: '0x1234567890abcdef1234567890abcdef12345678'
+ *     responses:
+ *       200:
+ *         description: STK Push initiated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 reference:
+ *                   type: string
+ *                   description: Paystack transaction reference
+ *                   example: abc123xyz
+ *                 display_text:
+ *                   type: string
+ *                   description: User-facing prompt text
+ *                   example: Please check your phone to complete payment
+ *                 data:
+ *                   type: object
+ *                   description: Full Paystack charge response
+ *       400:
+ *         description: Bad Request – missing or invalid parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Valid email is required
+ *       502:
+ *         description: Bad Gateway – upstream payment provider failure
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: Failed to initiate M-Pesa payment
+ */
 router.post('/charge-mpesa', async (req, res) => {
     try {
         const { email, amountInKes, phoneNumber, walletAddress } = req.body;
@@ -109,6 +269,44 @@ router.post('/charge-mpesa', async (req, res) => {
 // ==========================================
 // STEP 3: PAYSTACK WEBHOOK RECEIVER
 // ==========================================
+
+/**
+ * @openapi
+ * /paystack/webhook:
+ *   post:
+ *     summary: Paystack webhook receiver
+ *     description: >
+ *       Receives cryptographically signed webhook updates from Paystack.
+ *       The request body is verified via HMAC-SHA512 signature in the
+ *       x-paystack-signature header before processing.
+ *     tags:
+ *       - Paystack
+ *     responses:
+ *       200:
+ *         description: Webhook received and processed successfully
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: Webhook Received
+ *       401:
+ *         description: Unauthorized – invalid HMAC signature
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Invalid webhook signature
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: Internal Server Error
+ */
 router.post('/webhook', verifyPaystackWebhook, (req, res) => {
   try {
     const event = req.body;

@@ -130,6 +130,58 @@ router.post('/link-wallet', verifySupabaseToken, async (req, res) => {
 
 // --- GET /transactions Endpoint ---
 // Returns a mock array of transaction objects representing the user's ledger
+
+/**
+ * @openapi
+ * /user/transactions:
+ *   get:
+ *     summary: Get user transaction ledger
+ *     description: >
+ *       Fetches the authenticated user's transaction ledger,
+ *       returning a list of all on-ramp transactions.
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Transaction ledger retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 transactions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: tx_01h9y4a2k8m
+ *                       amount:
+ *                         type: number
+ *                         example: 13000
+ *                       status:
+ *                         type: string
+ *                         example: COMPLETED
+ *                       date:
+ *                         type: string
+ *                         format: date-time
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: Internal server error while fetching transactions.
+ */
 router.get('/transactions', verifySupabaseToken, async (req, res) => {
   try {
     const mockTransactions = [

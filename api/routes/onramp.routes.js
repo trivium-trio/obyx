@@ -23,6 +23,71 @@ const initLimiter = rateLimit({
 const EXCHANGE_RATE = 130.00; // 1 USDC = 130 KES
 const MIN_FIAT_AMOUNT = 100;  // Minimum 100 KES (~$0.77)
 const MAX_FIAT_AMOUNT = 500000; // Maximum 500,000 KES (~$3,846)
+
+/**
+ * @openapi
+ * /onramp/init:
+ *   post:
+ *     summary: Initiate fiat-to-crypto on-ramp
+ *     description: >
+ *       Rate-limited endpoint that triggers the on-ramp pipeline.
+ *       Accepts a fiat amount in KES and initiates an M-Pesa STK push
+ *       via Paystack to begin the conversion to USDC.
+ *     tags:
+ *       - Onramp
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - fiatAmount
+ *             properties:
+ *               fiatAmount:
+ *                 type: number
+ *                 description: Amount in KES to convert
+ *                 example: 13000
+ *     responses:
+ *       200:
+ *         description: On-ramp pipeline initiated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: On-ramp initiated. Check your phone for the M-Pesa prompt.
+ *       429:
+ *         description: Too many requests – rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: Too many requests from this IP, please try again after a minute.
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: Internal server error while initiating on-ramp.
+ */
 router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
   try {
     const { fiatAmount } = req.body;
@@ -142,6 +207,64 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
 
 // --- GET /status/:id Endpoint ---
 // Read-only endpoint allowing the frontend to poll for transaction status updates.
+
+/**
+ * @openapi
+ * /onramp/status/{id}:
+ *   get:
+ *     summary: Get transaction status
+ *     description: >
+ *       Read-only endpoint allowing the frontend to poll for
+ *       transaction status updates by transaction ID.
+ *     tags:
+ *       - Onramp
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The unique transaction ID
+ *     responses:
+ *       200:
+ *         description: Transaction status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   description: The transaction ID
+ *                 status:
+ *                   type: string
+ *                   example: pending
+ *                 amount:
+ *                   type: number
+ *                   example: 5000
+ *                 currency:
+ *                   type: string
+ *                   example: KES
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Timestamp of transaction creation
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: Internal server error while fetching transaction status.
+ */
 router.get('/status/:id', verifySupabaseToken, async (req, res) => {
   try {
     const { id } = req.params;
