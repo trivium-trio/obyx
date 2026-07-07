@@ -1,62 +1,67 @@
 // =============================================================================
-// CIRCLE SERVICE (MOCK)
-// ----- Friend 1: Replace mock implementations with real Circle SDK calls -----
-//
-// This module handles all communication with Circle's APIs for minting/sending
-// USDC on Base Sepolia from our Treasury wallet.
-// Currently returns dummy responses so the orchestrator can be tested.
+// CIRCLE SERVICE
+// Handles all communication with Circle's Developer-Controlled Wallets API
+// for sending USDC from our Treasury wallet to a user's smart account address
+// on Base Sepolia.
 // =============================================================================
 
+import { initiateDeveloperControlledWalletsClient } from '@circle-fin/developer-controlled-wallets';
+import config from '../config/env.js';
+
+const circleClient = initiateDeveloperControlledWalletsClient({
+  apiKey: config.CIRCLE_API_KEY,
+  entitySecret: config.CIRCLE_ENTITY_SECRET,
+});
+
 /**
- * Send USDC from our Treasury wallet to a user's EOA wallet on Base Sepolia.
+ * Send USDC from our Treasury wallet to a user's smart account address on Base Sepolia.
  *
- * @param {string} walletAddress - Destination MetaMask EOA address (lowercase)
- * @param {number} amount        - Amount of USDC to send (e.g., 11.54)
- * @returns {Promise<object>}    - Object containing the blockchain txHash
+ * IMPORTANT: Circle's createTransaction call is asynchronous on Circle's side.
+ * The response returned here only confirms Circle *accepted* the transfer request
+ * (state: 'INITIATED') — it does NOT include a blockchain txHash yet. The txHash
+ * only becomes available once the transaction confirms on-chain, which must be
+ * checked later via getTransferStatus(circleTransactionId).
  *
- * TODO (Friend 1):
- *   - Initialize the Circle SDK with your API key
- *   - Use the Circle Programmable Wallets or Mint API
- *   - Execute a transfer of `amount` USDC on Base Sepolia
- *   - Return the real transaction hash from the blockchain
+ * @param {string} walletAddress   - Destination smart account address (lowercase)
+ * @param {number} amount          - Amount of USDC to send (e.g., 11.54)
+ * @param {string} idempotencyKey  - A UUID v4, unique per logical transfer attempt.
+ *                                   Reuse the same key across retries of the same
+ *                                   transaction so Circle won't double-send.
+ * @returns {Promise<object>} - { success, circleTransactionId, state }
  */
-export const sendUSDC = async (walletAddress, amount) => {
-  console.log(`[CIRCLE MOCK] Sending ${amount} USDC -> ${walletAddress} on Base Sepolia`);
+export const sendUSDC = async (walletAddress, amount, idempotencyKey) => {
+  console.log(`[CIRCLE] Sending ${amount} USDC -> ${walletAddress} on Base Sepolia (idempotencyKey: ${idempotencyKey})`);
 
-  // Simulate blockchain confirmation delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  const response = await circleClient.createTransaction({
+    idempotencyKey,
+    walletId: config.CIRCLE_TREASURY_WALLET_ID,
+    tokenId: config.CIRCLE_USDC_TOKEN_ID,
+    destinationAddress: walletAddress,
+    amounts: [amount.toString()],
+    fee: {
+      type: 'level',
+      config: { feeLevel: 'MEDIUM' },
+    },
+  });
 
-  // Generate a fake tx hash for development
-  const fakeTxHash = '0x' + [...Array(64)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+  const tx = response.data;
 
   return {
     success: true,
-    txHash: fakeTxHash,
-    chain: 'base-sepolia',
-    amount,
-    to: walletAddress,
+    circleTransactionId: tx.id,
+    state: tx.state, // e.g. 'INITIATED'
   };
 };
 
 /**
- * Check the status of a USDC transfer on-chain.
+ * Check the status of a previously-sent USDC transfer.
+ * Poll this after sendUSDC() until state is 'CONFIRMED' (or 'FAILED')
+ * to obtain the real on-chain txHash.
  *
- * @param {string} txHash - The blockchain transaction hash to check
- * @returns {Promise<object>} - Transfer status
- *
- * TODO (Friend 1):
- *   - Query the Circle API or Base Sepolia RPC for tx confirmation
- *   - Return { confirmed: true/false, blockNumber, ... }
+ * @param {string} circleTransactionId - The Circle transaction ID from sendUSDC()
+ * @returns {Promise<object>} - Circle's transaction record, including txHash once confirmed
  */
-export const getTransferStatus = async (txHash) => {
-  console.log(`[CIRCLE MOCK] Checking tx status: ${txHash}`);
-
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  return {
-    confirmed: true,
-    txHash,
-    blockNumber: 12345678,
-    chain: 'base-sepolia',
-  };
+export const getTransferStatus = async (circleTransactionId) => {
+  const response = await circleClient.getTransaction({ id: circleTransactionId });
+  return response.data.transaction;
 };
