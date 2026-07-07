@@ -70,27 +70,32 @@ router.post('/paystack', verifyPaystackWebhook, async (req, res) => {
     console.log(`[WEBHOOK] Sending ${transaction.cryptoAmount} USDC -> ${user.walletAddress}`);
 
     try {
+      // Reuse the transaction's own UUID as the idempotency key — it's already
+      // a unique, stable UUIDv4 per row, so retries of this webhook never
+      // cause Circle to double-send.
       const circleResult = await sendUSDC(
         user.walletAddress,
-        parseFloat(transaction.cryptoAmount)
+        parseFloat(transaction.cryptoAmount),
+        transaction.id
       );
 
-      // --- Step 5: Mark as COMPLETED with the blockchain tx hash ---
+      // COMPLETED here means "Circle accepted the transfer" — txHash is not
+      // yet available and stays null until a reconciliation job confirms it.
       await transaction.update({
         status: 'COMPLETED',
-        txHash: circleResult.txHash,
+        circleTransactionId: circleResult.circleTransactionId,
       });
 
-      console.log(`[WEBHOOK] transaction ${transaction.id} COMPLETED | txHash: ${circleResult.txHash}`);
+      console.log(`[WEBHOOK] Transaction ${transaction.id} COMPLETED | circleTransactionId: ${circleResult.circleTransactionId}`);
     } catch (circleError) {
-      // Circle call failed — mark transaction as FAILED for manual review
       console.error(`[WEBHOOK] Circle disbursement failed for tx ${transaction.id}:`, circleError);
-      await transaction.update({ status: 'FAILED' });
-      // TODO: Queue for retry or alert the operations team
+      await transaction.update({
+        status: 'FAILED',
+        lastError: circleError.message,
+      });
     }
-  } catch (err) {
-    // We already sent 200, so just log the error for debugging
-    console.error('[WEBHOOK] Unexpected error processing webhook:', err);
+  } catch (error) {
+    console.error('[WEBHOOK] Unexpected error handling paystack webhook:', error);
   }
 });
 
