@@ -1,7 +1,6 @@
 // USER ROUTES
 import { Router } from 'express';
 import { User, Transaction } from '../models/index.js';
-import { User } from '../models/index.js';
 import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
 
 const router = Router();
