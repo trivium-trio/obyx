@@ -1,0 +1,751 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Obyx API",
+    "version": "1.0.0",
+    "description": "Obyx on-ramp/off-ramp orchestrator API for the African market"
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Main API Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Transaction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ONRAMP",
+              "OFFRAMP"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "FIAT_PROCESSING",
+              "FIAT_RECEIVED",
+              "CRYPTO_PROCESSING",
+              "COMPLETED",
+              "FAILED",
+              "REFUNDED"
+            ]
+          },
+          "fiatAmount": {
+            "type": "number"
+          },
+          "fiatCurrency": {
+            "type": "string"
+          },
+          "cryptoAmount": {
+            "type": "number"
+          },
+          "cryptoCurrency": {
+            "type": "string"
+          },
+          "exchangeRate": {
+            "type": "number"
+          },
+          "paystackReference": {
+            "type": "string",
+            "nullable": true
+          },
+          "txHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/webhooks/paystack": {
+      "post": {
+        "summary": "Paystack payment webhook",
+        "description": "Receives verified Paystack webhook events for payment processing. On a successful charge, the system updates the transaction status, triggers a USDC disbursement via Circle, and records the on-chain transaction hash. Always responds 200 immediately to prevent Paystack retries.\n",
+        "tags": [
+          "Webhooks"
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook acknowledged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "received": {
+                      "type": "boolean",
+                      "example": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/link-wallet": {
+      "post": {
+        "summary": "Link a wallet address to a user account",
+        "description": "Associates an Ethereum wallet address with the authenticated user.",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "walletAddress"
+                ],
+                "properties": {
+                  "walletAddress": {
+                    "type": "string",
+                    "description": "The Ethereum wallet address to link (0x...)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Wallet linked successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Wallet linked successfully."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "userId": {
+                          "type": "string"
+                        },
+                        "walletAddress": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing or invalid wallet address)"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "409": {
+            "description": "Conflict (Wallet already linked to another account)"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/user/transactions": {
+      "get": {
+        "summary": "Get user transaction ledger",
+        "description": "Fetches the authenticated user's transaction ledger, returning a list of all on-ramp and off-ramp transactions ordered by newest first.\n",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction ledger retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Transaction"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/paystack/checkout": {
+      "post": {
+        "summary": "Initialize Paystack payment checkout",
+        "description": "Creates a Paystack payment session for mobile money. Returns an authorization URL to redirect the user to complete payment.\n",
+        "tags": [
+          "Paystack"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "amountInKes",
+                  "walletAddress"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "user@example.com"
+                  },
+                  "amountInKes": {
+                    "type": "number",
+                    "description": "Payment amount in KES",
+                    "example": 13000
+                  },
+                  "walletAddress": {
+                    "type": "string",
+                    "description": "EVM wallet address to receive the crypto",
+                    "example": "0x1234567890abcdef1234567890abcdef12345678"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Checkout session created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "checkout_url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "reference": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request – invalid parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/paystack/charge-mpesa": {
+      "post": {
+        "summary": "Initiate M-Pesa STK Push payment",
+        "description": "Triggers an M-Pesa STK (Sim Toolkit) push to the user's phone via Paystack. The user receives a payment prompt on their device to authorize the transaction.\n",
+        "tags": [
+          "Paystack"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "amountInKes",
+                  "phoneNumber",
+                  "walletAddress"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "User's email address",
+                    "example": "user@example.com"
+                  },
+                  "amountInKes": {
+                    "type": "number",
+                    "description": "Payment amount in KES",
+                    "example": 13000
+                  },
+                  "phoneNumber": {
+                    "type": "string",
+                    "description": "M-Pesa registered phone number",
+                    "example": "+254712345678"
+                  },
+                  "walletAddress": {
+                    "type": "string",
+                    "description": "EVM wallet address to receive the crypto",
+                    "example": "0x1234567890abcdef1234567890abcdef12345678"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "STK Push initiated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "reference": {
+                      "type": "string",
+                      "description": "Paystack transaction reference"
+                    },
+                    "display_text": {
+                      "type": "string",
+                      "description": "User-facing prompt text"
+                    },
+                    "data": {
+                      "type": "object",
+                      "description": "Full Paystack charge response"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request – missing or invalid parameters"
+          },
+          "502": {
+            "description": "Bad Gateway – upstream payment provider failure"
+          }
+        }
+      }
+    },
+    "/onramp/init": {
+      "post": {
+        "summary": "Initiate fiat-to-crypto on-ramp",
+        "description": "Rate-limited endpoint that triggers the on-ramp pipeline. Accepts a fiat amount in KES and initiates an M-Pesa STK push via Paystack to begin the conversion to USDC.\n",
+        "tags": [
+          "Onramp"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "fiatAmount"
+                ],
+                "properties": {
+                  "fiatAmount": {
+                    "type": "number",
+                    "description": "Amount in KES to convert",
+                    "example": 13000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "On-ramp pipeline initiated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "On-ramp initiated. Check your phone for the M-Pesa prompt."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "transactionId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "fiatAmount": {
+                          "type": "number"
+                        },
+                        "cryptoAmount": {
+                          "type": "number"
+                        },
+                        "exchangeRate": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request – invalid or missing fiatAmount"
+          },
+          "429": {
+            "description": "Too many requests – rate limit exceeded"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "502": {
+            "description": "Payment initiation failed"
+          }
+        }
+      }
+    },
+    "/onramp/status/{id}": {
+      "get": {
+        "summary": "Get transaction status",
+        "description": "Read-only endpoint allowing the frontend to poll for transaction status updates by transaction ID.\n",
+        "tags": [
+          "Onramp"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The unique transaction ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Transaction"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Unauthorized – not your transaction"
+          },
+          "404": {
+            "description": "Transaction not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/offramp/init": {
+      "post": {
+        "summary": "Initiate crypto-to-fiat off-ramp",
+        "description": "Initiates an off-ramp transaction. Accepts a USDC amount, verifies limits, and returns the generated transaction ID along with calculated fiat value.\n",
+        "tags": [
+          "Offramp"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "usdcAmount"
+                ],
+                "properties": {
+                  "usdcAmount": {
+                    "type": "number",
+                    "description": "Amount in USDC to convert",
+                    "example": 50
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Off-ramp transaction created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "transactionId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "cryptoAmount": {
+                          "type": "number"
+                        },
+                        "fiatAmount": {
+                          "type": "number"
+                        },
+                        "exchangeRate": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request – invalid amount or missing user phone number"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "429": {
+            "description": "Too many requests"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/offramp/confirm": {
+      "post": {
+        "summary": "Confirm off-ramp USDC transfer",
+        "description": "Called by the frontend after the user signs the EVM transaction transferring USDC to the treasury. Triggers the internal fiat payout pipeline.\n",
+        "tags": [
+          "Offramp"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "transactionId",
+                  "txHash"
+                ],
+                "properties": {
+                  "transactionId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "txHash": {
+                    "type": "string",
+                    "description": "The EVM transaction hash of the USDC transfer",
+                    "example": "0xabcdef1234567890abcdef1234567890abcdef1234567890"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction confirmed and payout processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Transaction already processing or invalid state"
+          },
+          "404": {
+            "description": "Transaction not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/offramp/status/{id}": {
+      "get": {
+        "summary": "Get off-ramp transaction status",
+        "description": "Read-only endpoint allowing the frontend to poll for transaction status updates by transaction ID.\n",
+        "tags": [
+          "Offramp"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The unique transaction ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Transaction"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Transaction not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    }
+  },
+  "tags": []
+}
