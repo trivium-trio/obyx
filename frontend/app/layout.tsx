@@ -31,6 +31,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} dark antialiased`}
+      data-scroll-behavior="smooth"
     >
       <body className="min-h-screen flex flex-col bg-surface-950 text-foreground">
         <AuthProvider>
