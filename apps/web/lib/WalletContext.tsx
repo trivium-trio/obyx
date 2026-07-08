@@ -17,6 +17,7 @@ import {
   sendGaslessTransfer,
   USDC_DECIMALS,
 } from "@/lib/circle";
+import { UserService } from "@/lib/api/client";
 
 // ── Types ──
 interface WalletContextType {
@@ -78,12 +79,32 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setIsInitializingCircle(true);
       setCircleError(null);
       try {
+        // Use connector for Dynamic SDK version 4.x
         const walletClient = await (primaryWallet!.connector as any).getWalletClient();
-        const smartAccount = await initCircleSmartAccount(walletClient as any);
+        
+        // Dynamic's walletClient may not have .account set.
+        // Patch it with the known address so circle.ts walletClientToOwner() works.
+        if (!walletClient.account) {
+          walletClient.account = {
+            address: addr as `0x${string}`,
+            type: "json-rpc",
+          };
+        }
+        
+        const smartAccount = await initCircleSmartAccount(walletClient as any, addr);
         const bundlerClient = createCircleBundlerClient(smartAccount);
 
         bundlerClientRef.current = bundlerClient;
         setCircleAddress(smartAccount.address);
+        
+        // Auto-link wallet to the user's account
+        try {
+          await UserService.postUserLinkWallet({ walletAddress: addr });
+          console.log("[WALLET] Linked wallet to backend:", addr);
+        } catch (linkErr) {
+          // Don't fail Circle init if wallet link fails (user might not be logged in)
+          console.warn("[WALLET] Failed to link wallet (non-fatal):", linkErr);
+        }
       } catch (err) {
         console.error("Circle Smart Account init failed:", err);
         setCircleError(

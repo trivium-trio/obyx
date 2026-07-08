@@ -23,6 +23,66 @@ const MIN_CRYPTO_AMOUNT = 1;  // Minimum 1 USDC (~130 KES)
 const MAX_CRYPTO_AMOUNT = 5000; // Maximum 5000 USDC (~650,000 KES)
 
 // POST /init
+
+/**
+ * @openapi
+ * /offramp/init:
+ *   post:
+ *     summary: Initiate crypto-to-fiat off-ramp
+ *     description: >
+ *       Initiates an off-ramp transaction. Accepts a USDC amount, verifies limits,
+ *       and returns the generated transaction ID along with calculated fiat value.
+ *     tags:
+ *       - Offramp
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - usdcAmount
+ *             properties:
+ *               usdcAmount:
+ *                 type: number
+ *                 description: Amount in USDC to convert
+ *                 example: 50
+ *     responses:
+ *       201:
+ *         description: Off-ramp transaction created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     transactionId:
+ *                       type: string
+ *                       format: uuid
+ *                     cryptoAmount:
+ *                       type: number
+ *                     fiatAmount:
+ *                       type: number
+ *                     exchangeRate:
+ *                       type: number
+ *                     status:
+ *                       type: string
+ *       400:
+ *         description: Bad request – invalid amount or missing user phone number
+ *       404:
+ *         description: User not found
+ *       429:
+ *         description: Too many requests
+ *       500:
+ *         description: Internal server error
+ */
 router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
   try {
     const { usdcAmount } = req.body;
@@ -85,6 +145,56 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
 
 // POST /confirm
 // The frontend calls this after the user signs the transaction in MetaMask
+
+/**
+ * @openapi
+ * /offramp/confirm:
+ *   post:
+ *     summary: Confirm off-ramp USDC transfer
+ *     description: >
+ *       Called by the frontend after the user signs the EVM transaction transferring
+ *       USDC to the treasury. Triggers the internal fiat payout pipeline.
+ *     tags:
+ *       - Offramp
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - transactionId
+ *               - txHash
+ *             properties:
+ *               transactionId:
+ *                 type: string
+ *                 format: uuid
+ *               txHash:
+ *                 type: string
+ *                 description: The EVM transaction hash of the USDC transfer
+ *                 example: "0xabcdef1234567890abcdef1234567890abcdef1234567890"
+ *     responses:
+ *       200:
+ *         description: Transaction confirmed and payout processing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Bad request - Transaction already processing or invalid state
+ *       404:
+ *         description: Transaction not found
+ *       500:
+ *         description: Internal server error
+ */
 router.post('/confirm', verifySupabaseToken, async (req, res) => {
   try {
     const { transactionId, txHash } = req.body;
@@ -127,6 +237,45 @@ router.post('/confirm', verifySupabaseToken, async (req, res) => {
 });
 
 // GET /status/:id
+
+/**
+ * @openapi
+ * /offramp/status/{id}:
+ *   get:
+ *     summary: Get off-ramp transaction status
+ *     description: >
+ *       Read-only endpoint allowing the frontend to poll for
+ *       transaction status updates by transaction ID.
+ *     tags:
+ *       - Offramp
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: The unique transaction ID
+ *     responses:
+ *       200:
+ *         description: Transaction status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Transaction'
+ *       404:
+ *         description: Transaction not found
+ *       500:
+ *         description: Internal server error
+ */
 router.get('/status/:id', verifySupabaseToken, async (req, res) => {
   try {
     const transaction = await Transaction.findOne({ where: { id: req.params.id, userId: req.user.id } });

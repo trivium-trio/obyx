@@ -19,6 +19,32 @@ const router = Router();
 //   6. Update status to COMPLETED with the on-chain txHash
 IMPORTANT: Always respond 200 quickly — Paystack retries on timeout.
 */
+
+/**
+ * @openapi
+ * /webhooks/paystack:
+ *   post:
+ *     summary: Paystack payment webhook
+ *     description: >
+ *       Receives verified Paystack webhook events for payment processing.
+ *       On a successful charge, the system updates the transaction status,
+ *       triggers a USDC disbursement via Circle, and records the on-chain
+ *       transaction hash. Always responds 200 immediately to prevent
+ *       Paystack retries.
+ *     tags:
+ *       - Webhooks
+ *     responses:
+ *       200:
+ *         description: Webhook acknowledged
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 received:
+ *                   type: boolean
+ *                   example: true
+ */
 router.post('/paystack', verifyPaystackWebhook, async (req, res) => {
   // Always acknowledge receipt immediately to prevent Paystack retries.
   // We process asynchronously below.

@@ -16,6 +16,8 @@ import { currencies, tokens, conversionRates } from "@/lib/mock-data";
 import type { Currency, Token } from "@/lib/mock-data";
 import { useWallet } from "@/lib/WalletContext";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { OnrampService, OfframpService } from "@/lib/api/client";
+import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
 
 export function SwapWidget() {
   const [fiatCurrency, setFiatCurrency] = useState<Currency>(currencies[0]);
@@ -41,6 +43,7 @@ export function SwapWidget() {
     sendGaslessSwap,
   } = useWallet();
   const { setShowAuthFlow } = useDynamicContext();
+  const { refreshTransactions } = useTransactionHistory();
 
   const rate = conversionRates[cryptoToken.symbol]?.[fiatCurrency.code] ?? 1;
 
@@ -73,7 +76,7 @@ export function SwapWidget() {
     // If Circle SA is still initializing, do nothing
     if (isInitializingCircle || !circleAddress) return;
 
-    // Execute gasless swap
+    // Execute swap
     setIsSwapping(true);
     setSwapError(null);
     setSwapResult(null);
@@ -82,13 +85,32 @@ export function SwapWidget() {
       const amt = parseFloat(fiatAmount.replace(/,/g, "")) || 0;
       const usdcAmount = amt / rate;
 
-      // For demo: send to the Circle SA itself (self-transfer)
-      // In production, this would go to a liquidity pool or exchange contract
-      const result = await sendGaslessSwap(circleAddress, usdcAmount);
-    } catch (err) {
+      if (!isReversed) {
+        // ON-RAMP: fiat -> crypto
+        const res = await OnrampService.postOnrampInit({ fiatAmount: amt });
+        setSwapResult({ txHash: res.data?.transactionId || "pending", userOpHash: "" });
+      } else {
+        // OFF-RAMP: crypto -> fiat
+        const res = await OfframpService.postOfframpInit({ usdcAmount });
+
+        // Execute gasless transfer to treasury
+        const gaslessResult = await sendGaslessSwap(circleAddress, usdcAmount);
+        const actualTxHash = gaslessResult.txHash;
+
+        // Confirm
+        await OfframpService.postOfframpConfirm({
+          transactionId: res.data!.transactionId as string,
+          txHash: actualTxHash,
+        });
+        
+        setSwapResult({ txHash: actualTxHash, userOpHash: gaslessResult.userOpHash });
+      }
+      
+      refreshTransactions();
+    } catch (err: any) {
       console.error("Swap failed:", err);
       setSwapError(
-        err instanceof Error ? err.message : "Swap failed. Please try again."
+        err.body?.error || err.message || "Swap failed. Please try again."
       );
     } finally {
       setIsSwapping(false);
@@ -102,6 +124,7 @@ export function SwapWidget() {
     rate,
     sendGaslessSwap,
     setShowAuthFlow,
+    refreshTransactions
   ]);
 
   // Determine button state
