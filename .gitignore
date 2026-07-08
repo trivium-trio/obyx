@@ -1,6 +1,10 @@
-./node_modules
-
-./
 node_modules/
-api/node_modules/
-api/.env
+apps/*/node_modules/
+apps/api/.env
+apps/web/.env
+apps/web/.env.local
+.next/
+dist/
+coverage/
+.DS_Store
+*.log
