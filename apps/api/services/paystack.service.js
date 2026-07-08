@@ -1,4 +1,14 @@
 // =============================================================================
+// PAYSTACK SERVICE (MOCK)
+// ----- Friend 2: Replace mock implementations with real Paystack API calls -----
+//
+// This module handles all communication with Paystack's payment APIs.
+// Currently returns dummy responses so the orchestrator can be developed
+// and tested independently.
+// =============================================================================
+
+/**
+ * Initiate an STK Push (Mobile Money prompt) to the user's phone.
 // PAYSTACK SERVICE
 // This module handles communication with Paystack's payment APIs, including
 // M-Pesa STK Push charges and payment verifications.
@@ -70,6 +80,19 @@ export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAdd
  * @param {string} phoneNumber - User's mobile money number (e.g., "254712345678")
  * @param {number} amount      - Amount in KES to charge
  * @param {string} reference   - Unique reference for this payment (Transaction ID)
+ * @returns {Promise<object>}  - Paystack API response with a reference ID
+ *
+ * TODO (Friend 2):
+ *   - Hit POST https://api.paystack.co/charge with your secret key
+ *   - Set the mobile_money provider (e.g., "mpesa")
+ *   - Return the actual Paystack reference from the response
+ */
+export const initiateSTKPush = async (phoneNumber, amount, reference) => {
+  console.log(`[PAYSTACK MOCK] STK Push -> Phone: ${phoneNumber}, Amount: ${amount} KES, Ref: ${reference}`);
+
+  // Simulate a short network delay
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
  * @returns {Promise<object>}  - Paystack API response formatted for legacy callers
  */
 export const initiateSTKPush = async (phoneNumber, amount, reference) => {
@@ -78,6 +101,8 @@ export const initiateSTKPush = async (phoneNumber, amount, reference) => {
     status: true,
     message: 'Charge attempted',
     data: {
+      reference: reference, // In production, Paystack generates this
+      status: 'send_otp',   // Paystack's intermediate status
       reference: data.reference,
       status: data.status || 'send_otp',
     },
@@ -89,6 +114,15 @@ export const initiateSTKPush = async (phoneNumber, amount, reference) => {
  *
  * @param {string} reference - The Paystack payment reference to verify
  * @returns {Promise<object>} - Paystack verification response
+ *
+ * TODO (Friend 2):
+ *   - Hit GET https://api.paystack.co/transaction/verify/:reference
+ *   - Return { status: 'success', amount, currency } from the response
+ */
+export const verifyPayment = async (reference) => {
+  console.log(`[PAYSTACK MOCK] Verifying payment: ${reference}`);
+
+  await new Promise((resolve) => setTimeout(resolve, 100));
  */
 export const verifyPayment = async (reference) => {
   const secretKey = process.env.PAYSTACK_SECRET_KEY || config.PAYSTACK_SECRET_KEY;
@@ -117,6 +151,10 @@ export const verifyPayment = async (reference) => {
   return {
     status: true,
     data: {
+      status: 'success',
+      amount: 0,       // Amount in kobo/pesewas — Friend 2 will parse this
+      currency: 'KES',
+      reference,
       status: result.data.status,
       amount: result.data.amount / 100,
       currency: result.data.currency,

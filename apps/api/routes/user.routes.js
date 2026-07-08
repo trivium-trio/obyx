@@ -1,5 +1,6 @@
 // USER ROUTES
 import { Router } from 'express';
+import { User, Transaction } from '../models/index.js';
 import { User } from '../models/index.js';
 import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
 
@@ -128,6 +129,54 @@ router.post('/link-wallet', verifySupabaseToken, async (req, res) => {
     });
   }
 });
+/**
+ * @openapi
+ * /user/transactions:
+ *   get:
+ *     summary: Get the authenticated user's transaction history
+ *     description: Returns up to 50 of the user's most recent transactions, ordered newest first.
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Maximum number of transactions to return
+ *     responses:
+ *       200:
+ *         description: List of transactions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/transactions', verifySupabaseToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+
+    const transactions = await Transaction.findAll({
+      where: { userId },
+      order: [['createdAt', 'DESC']],
+      limit,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: transactions,
 
 // --- GET /transactions Endpoint ---
 // Returns real transactions for the authenticated user
@@ -183,6 +232,89 @@ router.get('/transactions', verifySupabaseToken, async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Internal server error while fetching transactions.',
+    });
+  }
+});
+
+/**
+ * @openapi
+ * /user/transactions:
+ *   post:
+ *     summary: Record a new transaction for the authenticated user
+ *     description: Creates a new transaction record in the database.
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *               fiatAmount:
+ *                 type: number
+ *               fiatCurrency:
+ *                 type: string
+ *               cryptoAmount:
+ *                 type: number
+ *               cryptoCurrency:
+ *                 type: string
+ *               exchangeRate:
+ *                 type: number
+ *               txHash:
+ *                 type: string
+ *               walletAddress:
+ *                 type: string
+ *               cryptoNetwork:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Transaction recorded successfully
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/transactions', verifySupabaseToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const {
+      type,
+      fiatAmount,
+      fiatCurrency,
+      cryptoAmount,
+      cryptoCurrency,
+      exchangeRate,
+      txHash,
+      walletAddress,
+      cryptoNetwork,
+    } = req.body;
+
+    const transaction = await Transaction.create({
+      userId,
+      type,
+      status: 'COMPLETED',
+      fiatAmount,
+      fiatCurrency,
+      cryptoAmount,
+      cryptoCurrency,
+      exchangeRate,
+      txHash,
+      walletAddress,
+      cryptoNetwork,
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: transaction,
+    });
+  } catch (err) {
+    console.error('[USER] Error recording transaction:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error while recording transaction.',
     });
   }
 });
