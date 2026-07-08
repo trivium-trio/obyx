@@ -5,3 +5,4 @@ We have engineered a non-custodial, automated fiat-to-stablecoin routing engine 
 Mechanically, the architecture bridges localized payment rails with primary stablecoin issuance protocols. When a user initiates a transaction, our backend utilizes automated payment webhooks to capture local fiat and programmatically trigger Circle Mint APIs in a sandboxed testing environment. This executes direct, primary minting of native USDC straight to the user's target self-custodial wallet address.
 
 By bypassing credit card reliance and eliminating manual P2P intermediaries, we deliver an instantaneous, single-click financial on-ramp engineered specifically for emerging markets."
+:
