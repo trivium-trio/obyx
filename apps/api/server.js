@@ -18,8 +18,12 @@ import offrampRoutes from './routes/offramp.routes.js';
 import { sequelize } from './models/index.js';
 
 const app = express();
+
+// Support multiple comma-separated URLs in FRONTEND_URL
+const allowedOrigins = config.FRONTEND_URL.split(',').map(url => url.trim());
+
 app.use(cors({
-  origin: config.FRONTEND_URL,
+  origin: allowedOrigins,
   credentials: true,
 }));
 
