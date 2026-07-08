@@ -128,54 +128,6 @@ router.post('/link-wallet', verifySupabaseToken, async (req, res) => {
     });
   }
 });
-/**
- * @openapi
- * /user/transactions:
- *   get:
- *     summary: Get the authenticated user's transaction history
- *     description: Returns up to 50 of the user's most recent transactions, ordered newest first.
- *     tags:
- *       - User
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 50
- *         description: Maximum number of transactions to return
- *     responses:
- *       200:
- *         description: List of transactions
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *       500:
- *         description: Internal server error
- */
-router.get('/transactions', verifySupabaseToken, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-
-    const transactions = await Transaction.findAll({
-      where: { userId },
-      order: [['createdAt', 'DESC']],
-      limit,
-    });
-
-    return res.status(200).json({
-      success: true,
-      data: transactions,
 
 // --- GET /transactions Endpoint ---
 // Returns real transactions for the authenticated user
