@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowDown, ArrowRight, LayoutDashboard } from "lucide-react";
-import { ArrowRight } from "lucide-react";
 
 export function HeroSection() {
   return (
