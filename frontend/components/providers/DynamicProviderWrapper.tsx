@@ -3,9 +3,10 @@
 import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { WalletProvider } from "@/lib/WalletContext";
+import { TransactionHistoryProvider } from "@/lib/TransactionHistoryContext";
 import type { ReactNode } from "react";
 
-const DYNAMIC_ENV_ID = process.env.NEXT_PUBLIC_DYNAMIC_ENV_ID;
+const DYNAMIC_ENV_ID = process.env.NEXT_PUBLIC_DYNAMIC_ENV_ID ?? "";
 
 if (!DYNAMIC_ENV_ID) {
   throw new Error("Missing NEXT_PUBLIC_DYNAMIC_ENV_ID");
@@ -28,7 +29,9 @@ export function DynamicProviderWrapper({ children }: { children: ReactNode }) {
         walletConnectPreferredChains: ["eip155:84532"], // Base Sepolia chain ID
       }}
     >
-      <WalletProvider>{children}</WalletProvider>
+      <WalletProvider>
+        <TransactionHistoryProvider>{children}</TransactionHistoryProvider>
+      </WalletProvider>
     </DynamicContextProvider>
   );
 }
