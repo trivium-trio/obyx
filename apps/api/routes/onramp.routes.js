@@ -8,11 +8,6 @@ import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
 import { initiateSTKPush } from '../services/paystack.service.js';
 
 const router = Router();
-const EXCHANGE_RATE = 130.00; // 1 USDC = 130 KES
-const MIN_FIAT_AMOUNT = 100;  // Minimum 100 KES (~$0.77)
-const MAX_FIAT_AMOUNT = 500000; // Maximum 500,000 KES (~$3,846)
-router.post('/init', verifySupabaseToken, async (req, res) => {
-
 const initLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
