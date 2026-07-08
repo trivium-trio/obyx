@@ -44,26 +44,32 @@ export const circlePublicClient = createPublicClient({
 /**
  * Convert a Dynamic WalletClient into a viem Account that can be
  * used as the `owner` for a Circle Smart Account.
+ *
+ * @param walletClient - The viem WalletClient from Dynamic SDK
+ * @param fallbackAddress - Optional fallback if walletClient.account is not set
  */
-export function walletClientToOwner(walletClient: WalletClient): Account {
-  const address = walletClient.account?.address;
-  if (!address) throw new Error("Wallet client has no account");
+export function walletClientToOwner(walletClient: WalletClient, fallbackAddress?: string): Account {
+  const address = walletClient.account?.address ?? (fallbackAddress as `0x${string}` | undefined);
+  if (!address) throw new Error("Wallet client has no account and no fallback address was provided");
+
+  // Ensure the walletClient has the account set for signing methods
+  const account = walletClient.account ?? { address, type: "json-rpc" as const };
 
   return toAccount({
     address,
     async signMessage({ message }) {
-      return walletClient.signMessage({ account: walletClient.account!, message });
+      return walletClient.signMessage({ account: account as any, message });
     },
     async signTransaction(transaction) {
       return walletClient.signTransaction({
-        account: walletClient.account!,
+        account: account as any,
         ...transaction,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
     },
     async signTypedData(typedData) {
       return walletClient.signTypedData({
-        account: walletClient.account!,
+        account: account as any,
         ...typedData,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
@@ -74,8 +80,8 @@ export function walletClientToOwner(walletClient: WalletClient): Account {
 /**
  * Initialize a Circle Smart Account from a connected wallet client.
  */
-export async function initCircleSmartAccount(walletClient: WalletClient) {
-  const owner = walletClientToOwner(walletClient);
+export async function initCircleSmartAccount(walletClient: WalletClient, fallbackAddress?: string) {
+  const owner = walletClientToOwner(walletClient, fallbackAddress);
 
   const smartAccount = await toCircleSmartAccount({
     client: circlePublicClient,

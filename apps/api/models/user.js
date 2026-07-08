@@ -10,7 +10,7 @@ export default (sequelize) => {
     },
     phoneNumber: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       comment: "User's mobile money number (e.g., for M-Pesa/Paystack)"
     },
     walletAddress: {

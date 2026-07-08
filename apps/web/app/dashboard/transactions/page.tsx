@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { TransactionStream } from "@/components/dashboard/TransactionStream";
 import { OrderBook } from "@/components/dashboard/OrderBook";
+import { TransactionHistoryTable } from "@/components/dashboard/TransactionHistoryTable";
 
 export default function TransactionsPage() {
   return (
@@ -19,6 +20,14 @@ export default function TransactionsPage() {
         <p className="text-sm text-white/35 font-mono">
           Live transaction feed and order book
         </p>
+      </motion.div>
+
+      {/* Real Transaction History */}
+      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
+        <h2 className="text-sm font-medium text-white/40 uppercase tracking-widest mb-5">
+          Your History
+        </h2>
+        <TransactionHistoryTable />
       </motion.div>
 
       {/* Main grid */}

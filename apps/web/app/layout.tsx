@@ -32,7 +32,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} dark antialiased`}
     >
-      <body className="min-h-screen flex flex-col bg-surface-950 text-foreground">
+      <body suppressHydrationWarning className="min-h-screen flex flex-col bg-surface-950 text-foreground">
         <AuthProvider>
           <DynamicProviderWrapper>
             <LayoutShell>{children}</LayoutShell>
