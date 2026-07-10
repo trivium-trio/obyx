@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { useWallet } from "@/lib/WalletContext";
-import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
+import { DynamicWidget, useDynamicContext } from "@dynamic-labs/sdk-react-core";
 
 const sidebarLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -40,6 +40,20 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [walletMenuOpen, setWalletMenuOpen] = useState(false);
+  const walletMenuRef = useRef<HTMLDivElement>(null);
+  const { setShowAuthFlow } = useDynamicContext();
+
+  // Close wallet dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (walletMenuRef.current && !walletMenuRef.current.contains(e.target as Node)) {
+        setWalletMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -253,16 +267,58 @@ export default function DashboardLayout({
 
               {/* Dynamic Widget for wallet connection */}
               {isConnected ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-2 rounded-xl bg-success/10 border border-success/20 px-4 py-2.5 text-sm font-medium text-success"
-                >
-                  <Wallet className="h-4 w-4" />
-                  <span className="font-mono">
-                    {walletAddress ? formatAddress(walletAddress) : "Connected"}
-                  </span>
-                </motion.div>
+                <div className="relative" ref={walletMenuRef}>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setWalletMenuOpen((prev) => !prev)}
+                    className="flex items-center gap-2 rounded-xl bg-success/10 border border-success/20 px-4 py-2.5 text-sm font-medium text-success cursor-pointer hover:bg-success/20 transition-all duration-300"
+                  >
+                    <Wallet className="h-4 w-4" />
+                    <span className="font-mono">
+                      {walletAddress ? formatAddress(walletAddress) : "Connected"}
+                    </span>
+                    <ChevronLeft className="h-3.5 w-3.5 -rotate-90 transition-transform" style={{ transform: walletMenuOpen ? 'rotate(90deg)' : 'rotate(-90deg)' }} />
+                  </motion.div>
+
+                  {/* Wallet Dropdown Menu */}
+                  <AnimatePresence>
+                    {walletMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 top-full mt-2 w-52 rounded-xl border border-white/10 bg-surface-900/95 backdrop-blur-xl shadow-2xl overflow-hidden z-50"
+                      >
+                        <button
+                          onClick={async () => {
+                            setWalletMenuOpen(false);
+                            await disconnect();
+                            setShowAuthFlow(true);
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-sm text-white/80 hover:bg-white/5 hover:text-white transition-colors"
+                        >
+                          <ArrowLeftRight className="h-4 w-4 text-neon-orange" />
+                          Switch Wallet
+                        </button>
+                        <div className="border-t border-white/5" />
+                        <button
+                          onClick={async () => {
+                            setWalletMenuOpen(false);
+                            await disconnect();
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Disconnect
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               ) : (
                 <DynamicWidget
                   innerButtonComponent={

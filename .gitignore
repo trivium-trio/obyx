@@ -1,12 +1,25 @@
+# Dependencies
 node_modules/
-node_modules
 apps/*/node_modules/
-apps/api/.env
-apps/web/.env
-apps/web/.env.local
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.dat
+recovery_file_*
+
+# Build output
 .next/
 dist/
 coverage/
+build/
+
+# IDE & OS
 .DS_Store
 *.log
-node_modules/
+.vscode/
+.idea/
+
+# Misc
+repomix-output.xml
