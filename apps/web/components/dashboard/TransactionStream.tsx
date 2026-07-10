@@ -64,7 +64,7 @@ export function TransactionStream() {
       </div>
 
       {/* Column Headers */}
-      <div className="grid grid-cols-5 gap-2 px-5 py-2 text-[10px] font-mono text-white/20 uppercase tracking-wider border-b border-white/[0.03]">
+      <div className="hidden sm:grid grid-cols-5 gap-2 px-5 py-2 text-[10px] font-mono text-white/20 uppercase tracking-wider border-b border-white/[0.03]">
         <span>Time</span>
         <span>Pair</span>
         <span className="text-right">Amount</span>
@@ -87,34 +87,67 @@ export function TransactionStream() {
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.3 }}
               className={cn(
-                "grid grid-cols-5 gap-2 px-5 py-3 text-xs font-mono border-b border-white/[0.02]",
+                "px-5 py-3 text-xs font-mono border-b border-white/[0.02]",
                 "hover:bg-white/[0.02] transition-colors"
               )}
             >
-              <span className="text-white/30">{tx.timestamp}</span>
-              <span className="text-white/60 font-medium">{tx.pair}</span>
-              <span className="text-right text-white/40">{tx.amount}</span>
-              <span className="text-right text-white/50">{tx.value}</span>
-              <span className="text-right">
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]",
-                    tx.status === "completed" && "bg-success/10 text-success",
-                    tx.status === "pending" && "bg-neon-amber/10 text-neon-amber",
-                    tx.status === "failed" && "bg-danger/10 text-danger"
-                  )}
-                >
+              {/* ── Mobile layout ── */}
+              <div className="flex sm:hidden flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60 font-medium">{tx.pair}</span>
                   <span
                     className={cn(
-                      "h-1 w-1 rounded-full",
-                      tx.status === "completed" && "bg-success",
-                      tx.status === "pending" && "bg-neon-amber animate-pulse",
-                      tx.status === "failed" && "bg-danger"
+                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]",
+                      tx.status === "completed" && "bg-success/10 text-success",
+                      tx.status === "pending" && "bg-neon-amber/10 text-neon-amber",
+                      tx.status === "failed" && "bg-danger/10 text-danger"
                     )}
-                  />
-                  {tx.status}
+                  >
+                    <span
+                      className={cn(
+                        "h-1 w-1 rounded-full",
+                        tx.status === "completed" && "bg-success",
+                        tx.status === "pending" && "bg-neon-amber animate-pulse",
+                        tx.status === "failed" && "bg-danger"
+                      )}
+                    />
+                    {tx.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-white/40">
+                  <span className="text-white/30">{tx.timestamp}</span>
+                  <span className="text-right text-white/50">{tx.value}</span>
+                </div>
+                <div className="text-right text-white/40">{tx.amount}</div>
+              </div>
+
+              {/* ── Desktop layout ── */}
+              <div className="hidden sm:grid grid-cols-5 gap-2 items-center">
+                <span className="text-white/30">{tx.timestamp}</span>
+                <span className="text-white/60 font-medium">{tx.pair}</span>
+                <span className="text-right text-white/40">{tx.amount}</span>
+                <span className="text-right text-white/50">{tx.value}</span>
+                <span className="text-right">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]",
+                      tx.status === "completed" && "bg-success/10 text-success",
+                      tx.status === "pending" && "bg-neon-amber/10 text-neon-amber",
+                      tx.status === "failed" && "bg-danger/10 text-danger"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "h-1 w-1 rounded-full",
+                        tx.status === "completed" && "bg-success",
+                        tx.status === "pending" && "bg-neon-amber animate-pulse",
+                        tx.status === "failed" && "bg-danger"
+                      )}
+                    />
+                    {tx.status}
+                  </span>
                 </span>
-              </span>
+              </div>
             </motion.div>
           ))}
         </AnimatePresence>
