@@ -22,19 +22,21 @@ import config from '../config/env.js';
  * @param {string} walletAddress - Target EVM wallet address for metadata
  * @returns {Promise<object>}    - Paystack success data (reference, display_text, etc.)
  */
-export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAddress, reference = undefined) => {
+export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAddress) => {
   const secretKey = process.env.PAYSTACK_SECRET_KEY || config.PAYSTACK_SECRET_KEY;
   if (!secretKey) {
     throw new Error('PAYSTACK_SECRET_KEY is not configured.');
   }
 
+  // Paystack M-Pesa expects phone without '+' prefix (e.g. "254712345678")
+  const cleanPhone = phoneNumber.replace(/^\+/, '');
+
   const payload = {
     email: email,
     amount: Math.round(amountInKes * 100),
     currency: 'KES',
-    ...(reference ? { reference: reference } : {}),
     mobile_money: {
-      phone: phoneNumber,
+      phone: cleanPhone,
       provider: 'mpesa',
     },
     metadata: {
@@ -48,6 +50,12 @@ export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAdd
     },
   };
 
+  console.log("[PAYSTACK] Sending charge request:", JSON.stringify({
+    email: payload.email,
+    amount: payload.amount,
+    currency: payload.currency,
+    mobile_money: payload.mobile_money,
+  }));
 
   const response = await fetch('https://api.paystack.co/charge', {
     method: 'POST',
@@ -60,10 +68,17 @@ export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAdd
 
   const result = await response.json();
 
+  console.log("[PAYSTACK] Response:", JSON.stringify({
+    httpStatus: response.status,
+    status: result.status,
+    message: result.message,
+    data: result.data,
+  }));
+
   if (!response.ok || !result.status) {
     console.error("[PAYSTACK] Charge request failed", {
       httpStatus: response.status,
-      message: result?.message,
+      fullResponse: JSON.stringify(result),
     });
     throw new Error(result?.message || "Failed to initiate M-Pesa STK Push");
   }
@@ -77,16 +92,15 @@ export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAdd
  *
  * @param {string} phoneNumber - User's mobile money number (e.g., "254712345678")
  * @param {number} amount      - Amount in KES to charge
- * @param {string} reference   - Unique reference for this payment (Transaction ID)
  * @returns {Promise<object>}  - Paystack API response formatted for legacy callers
  */
-export const initiateSTKPush = async (phoneNumber, amount, reference) => {
-  const data = await triggerMpesaSTK('onramp@obyx.co', amount, phoneNumber, '0x0000000000000000000000000000000000000000', reference);
+export const initiateSTKPush = async (phoneNumber, amount) => {
+  const data = await triggerMpesaSTK('onramp@obyx.co', amount, phoneNumber, '0x0000000000000000000000000000000000000000');
   return {
     status: true,
     message: 'Charge attempted',
     data: {
-      reference: data.reference || reference,
+      reference: data.reference,
       status: data.status || 'send_otp',
     },
   };
