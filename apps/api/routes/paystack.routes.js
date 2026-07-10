@@ -1,9 +1,22 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import verifyPaystackWebhook from '../middleware/verifyPaystackWebhook.js';
+import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
 import config from '../config/env.js';
 import { triggerMpesaSTK } from '../services/paystack.service.js';
 
 const router = express.Router();
+
+const initLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Too many requests from this IP, please try again after a minute.',
+  },
+});
 
 // ==========================================
 // STEP 1.2: PAYSTACK INITIALIZATION
@@ -60,7 +73,7 @@ const router = express.Router();
  *       500:
  *         description: Internal server error
  */
-router.post('/checkout', async (req, res) => {
+router.post('/checkout', initLimiter, verifySupabaseToken, async (req, res) => {
     try {
         const { email, amountInKes, walletAddress } = req.body;
 
@@ -187,7 +200,7 @@ router.post('/checkout', async (req, res) => {
  *       502:
  *         description: Bad Gateway – upstream payment provider failure
  */
-router.post('/charge-mpesa', async (req, res) => {
+router.post('/charge-mpesa', initLimiter, verifySupabaseToken, async (req, res) => {
     try {
         const { email, amountInKes, phoneNumber, walletAddress } = req.body;
 

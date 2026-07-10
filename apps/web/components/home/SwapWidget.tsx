@@ -85,7 +85,31 @@ export function SwapWidget() {
           fiatAmount: amt,
           ...(phone ? { phoneNumber: phone } : {}),
         });
-        setSwapResult({ txHash: res.data?.transactionId || "pending", userOpHash: "" });
+        const transactionId = res.data?.transactionId;
+        if (!transactionId) throw new Error("No transaction ID returned");
+
+        // Poll for status until completed or failed
+        let currentStatus = res.data?.status;
+        let attempts = 0;
+        
+        while (currentStatus !== 'COMPLETED' && currentStatus !== 'FAILED' && attempts < 20) {
+          await new Promise((resolve) => setTimeout(resolve, 3000)); // poll every 3s
+          const statusRes = await OnrampService.getOnrampStatus(transactionId);
+          currentStatus = statusRes.data?.status;
+          attempts++;
+        }
+
+        if (currentStatus === 'FAILED') {
+          throw new Error("M-Pesa payment failed or was cancelled.");
+        }
+        
+        if (currentStatus !== 'COMPLETED') {
+          throw new Error("Payment is taking longer than expected. Check your transaction history.");
+        }
+
+        // Wait a brief moment to ensure the transaction record includes the txHash from Circle
+        const finalStatus = await OnrampService.getOnrampStatus(transactionId);
+        setSwapResult({ txHash: finalStatus.data?.txHash || "pending", userOpHash: "" });
       } else {
         // OFF-RAMP: crypto -> fiat
         const res = await OfframpService.postOfframpInit({ usdcAmount });

@@ -5,7 +5,8 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { User, Transaction } from '../models/index.js';
 import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
-import { initiateSTKPush } from '../services/paystack.service.js';
+import { triggerMpesaSTK, verifyPayment } from '../services/paystack.service.js';
+import { sendUSDC } from '../services/circle.service.js';
 
 const router = Router();
 const initLimiter = rateLimit({
@@ -183,18 +184,20 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
     // --- Trigger the Paystack STK Push ---
     // Paystack auto-generates a unique reference per charge attempt.
     try {
-      const paystackResponse = await initiateSTKPush(
+      const paystackData = await triggerMpesaSTK(
+        req.user.email || 'onramp@obyx.co',
+        amount,
         stkPhone,
-        amount
+        user.walletAddress || '0x0000000000000000000000000000000000000000'
       );
 
       // Store the Paystack reference on the transaction
       await transaction.update({
         status: 'FIAT_PROCESSING',
-        paystackReference: paystackResponse.data.reference,
+        paystackReference: paystackData.reference,
       });
 
-      console.log(`[ONRAMP] STK Push sent: ${paystackResponse.data.reference}`);
+      console.log(`[ONRAMP] STK Push sent: ${paystackData.reference}`);
     } catch (paystackError) {
       // If Paystack fails, mark the transaction as FAILED
       await transaction.update({ status: 'FAILED' });

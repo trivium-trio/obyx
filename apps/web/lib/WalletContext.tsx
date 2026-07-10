@@ -172,6 +172,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setCircleError(null);
     bundlerClientRef.current = null;
     initAttemptedForRef.current = null;
+
+    // Clear Dynamic Labs cached wallet state from localStorage
+    if (typeof window !== 'undefined') {
+      Object.keys(localStorage).forEach((key) => {
+        if (
+          key.startsWith('dynamic_') ||
+          key.includes('walletconnect') ||
+          key.includes('wagmi') ||
+          key.includes('dynamic')
+        ) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
   }, [handleLogOut]);
 
   return (

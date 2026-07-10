@@ -28,8 +28,8 @@ export const triggerMpesaSTK = async (email, amountInKes, phoneNumber, walletAdd
     throw new Error('PAYSTACK_SECRET_KEY is not configured.');
   }
 
-  // Paystack M-Pesa expects phone without '+' prefix (e.g. "254712345678")
-  const cleanPhone = phoneNumber.replace(/^\+/, '');
+  // Paystack requires the '+' prefix for E.164 format (e.g. "+254712345678")
+  const cleanPhone = phoneNumber.startsWith('+') ? phoneNumber : '+' + phoneNumber;
 
   const payload = {
     email: email,
