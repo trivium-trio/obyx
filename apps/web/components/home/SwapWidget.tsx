@@ -143,7 +143,7 @@ export function SwapWidget() {
   const buttonState = getButtonState();
 
   return (
-    <section className="relative py-20 px-6">
+    <section className="relative py-6 sm:py-10 px-6">
       <div className="mx-auto max-w-md">
         {/* Widget label */}
         <motion.div
@@ -171,15 +171,15 @@ export function SwapWidget() {
             <label className="text-xs text-white/30 font-medium uppercase tracking-wider mb-3 block">
               {isReversed ? "You receive" : "You pay"}
             </label>
-            <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4">
+            <div className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] p-3 sm:p-4">
               {/* Currency Selector */}
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button
                   onClick={() => {
                     setShowFiatDropdown(!showFiatDropdown);
                     setShowCryptoDropdown(false);
                   }}
-                  className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm font-medium text-white hover:bg-white/[0.1] transition-colors"
+                  className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white hover:bg-white/[0.1] transition-colors"
                 >
                   <span className="text-lg">{fiatCurrency.flag}</span>
                   <span>{fiatCurrency.code}</span>
@@ -232,7 +232,7 @@ export function SwapWidget() {
                   setFiatAmount(e.target.value.replace(/[^0-9.,]/g, ""))
                 }
                 placeholder="0.00"
-                className="flex-1 bg-transparent text-right text-2xl font-semibold text-white placeholder:text-white/20 outline-none font-mono"
+                className="flex-1 min-w-0 bg-transparent text-right text-xl sm:text-2xl font-semibold text-white placeholder:text-white/20 outline-none font-mono"
               />
             </div>
           </div>
@@ -260,15 +260,15 @@ export function SwapWidget() {
             <label className="text-xs text-white/30 font-medium uppercase tracking-wider mb-3 block">
               {isReversed ? "You pay" : "You receive"}
             </label>
-            <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4">
+            <div className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] p-3 sm:p-4">
               {/* Token Selector */}
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button
                   onClick={() => {
                     setShowCryptoDropdown(!showCryptoDropdown);
                     setShowFiatDropdown(false);
                   }}
-                  className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm font-medium text-white hover:bg-white/[0.1] transition-colors"
+                  className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white hover:bg-white/[0.1] transition-colors"
                 >
                   <span className="text-lg">{cryptoToken.icon}</span>
                   <span>{cryptoToken.symbol}</span>
@@ -314,8 +314,8 @@ export function SwapWidget() {
               </div>
 
               {/* Computed Value */}
-              <div className="flex-1 text-right">
-                <span className="text-2xl font-semibold text-white font-mono">
+              <div className="flex-1 min-w-0 text-right">
+                <span className="text-xl sm:text-2xl font-semibold text-white font-mono break-all">
                   {computedValue}
                 </span>
               </div>
