@@ -14,10 +14,15 @@ const verifyPaystackWebhook = (req, res, next) => {
       return res.status(401).json({ error: 'Missing webhook signature.' });
     }
 
+    if (!req.rawBody) {
+      console.warn('[WEBHOOK] Missing raw body — cannot verify signature');
+      return res.status(400).json({ error: 'Request body not available for verification.' });
+    }
+
     // Compute the expected signature from the raw request body
     const expectedSignature = crypto
       .createHmac('sha512', config.PAYSTACK_SECRET_KEY)
-      .update(req.rawBody || JSON.stringify(req.body))
+      .update(req.rawBody)
       .digest('hex');
 
     if (signature !== expectedSignature) {

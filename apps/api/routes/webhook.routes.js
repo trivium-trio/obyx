@@ -78,6 +78,21 @@ router.post('/paystack', verifyPaystackWebhook, async (req, res) => {
       return;
     }
 
+    // --- Step 1.5: Verify Amount and Currency ---
+    // Paystack amounts are in the lowest currency unit (e.g., cents/kobo)
+    const expectedAmount = Math.round(transaction.fiatAmount * 100);
+    if (paymentData.amount !== expectedAmount) {
+      console.error(`[WEBHOOK] Amount mismatch for tx ${transaction.id}. Expected ${expectedAmount}, got ${paymentData.amount}`);
+      await transaction.update({ status: 'FAILED' });
+      return;
+    }
+
+    if (paymentData.currency !== transaction.fiatCurrency) {
+      console.error(`[WEBHOOK] Currency mismatch for tx ${transaction.id}. Expected ${transaction.fiatCurrency}, got ${paymentData.currency}`);
+      await transaction.update({ status: 'FAILED' });
+      return;
+    }
+
     // --- Step 2: Update status to FIAT_RECEIVED ---
     await transaction.update({ status: 'FIAT_RECEIVED' });
     console.log(`[WEBHOOK] Transaction ${transaction.id} -> FIAT_RECEIVED`);
