@@ -63,7 +63,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'global' });
+
+    // Clear any lingering Supabase session tokens from localStorage
+    // to prevent stale session restoration on next page load.
+    if (typeof window !== 'undefined') {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('sb-') || key.includes('supabase')) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
   }, []);
 
   return (
