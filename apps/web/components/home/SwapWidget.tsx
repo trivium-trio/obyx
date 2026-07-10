@@ -18,6 +18,7 @@ import { useWallet } from "@/lib/WalletContext";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { OnrampService, OfframpService } from "@/lib/api/client";
 import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
+import { PhoneNumberModal } from "@/components/dashboard/PhoneNumberModal";
 
 export function SwapWidget() {
   const [fiatCurrency, setFiatCurrency] = useState<Currency>(currencies[0]);
@@ -26,6 +27,7 @@ export function SwapWidget() {
   const [isReversed, setIsReversed] = useState(false);
   const [showFiatDropdown, setShowFiatDropdown] = useState(false);
   const [showCryptoDropdown, setShowCryptoDropdown] = useState(false);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
 
   // Swap execution state
   const [isSwapping, setIsSwapping] = useState(false);
@@ -40,6 +42,8 @@ export function SwapWidget() {
     isConnected,
     isInitializingCircle,
     circleAddress,
+    userPhone,
+    setUserPhone,
     sendGaslessSwap,
   } = useWallet();
   const { setShowAuthFlow } = useDynamicContext();
@@ -65,18 +69,8 @@ export function SwapWidget() {
     setIsReversed((prev) => !prev);
   }, []);
 
-  // Handle CTA button click
-  const handleCTAClick = useCallback(async () => {
-    // If not connected, open Dynamic wallet connect modal
-    if (!isConnected) {
-      setShowAuthFlow(true);
-      return;
-    }
-
-    // If Circle SA is still initializing, do nothing
-    if (isInitializingCircle || !circleAddress) return;
-
-    // Execute swap
+  // Core swap execution
+  const executeSwap = useCallback(async (phone?: string) => {
     setIsSwapping(true);
     setSwapError(null);
     setSwapResult(null);
@@ -86,15 +80,18 @@ export function SwapWidget() {
       const usdcAmount = amt / rate;
 
       if (!isReversed) {
-        // ON-RAMP: fiat -> crypto
-        const res = await OnrampService.postOnrampInit({ fiatAmount: amt });
+        // ON-RAMP: fiat -> crypto — pass phone directly to the API
+        const res = await OnrampService.postOnrampInit({
+          fiatAmount: amt,
+          ...(phone ? { phoneNumber: phone } : {}),
+        });
         setSwapResult({ txHash: res.data?.transactionId || "pending", userOpHash: "" });
       } else {
         // OFF-RAMP: crypto -> fiat
         const res = await OfframpService.postOfframpInit({ usdcAmount });
 
         // Execute gasless transfer to treasury
-        const gaslessResult = await sendGaslessSwap(circleAddress, usdcAmount);
+        const gaslessResult = await sendGaslessSwap(circleAddress!, usdcAmount);
         const actualTxHash = gaslessResult.txHash;
 
         // Confirm
@@ -116,16 +113,47 @@ export function SwapWidget() {
       setIsSwapping(false);
     }
   }, [
-    isConnected,
-    isInitializingCircle,
-    circleAddress,
     fiatAmount,
     isReversed,
     rate,
+    circleAddress,
     sendGaslessSwap,
-    setShowAuthFlow,
-    refreshTransactions
+    refreshTransactions,
   ]);
+
+  // Handle CTA button click
+  const handleCTAClick = useCallback(async () => {
+    // If not connected, open Dynamic wallet connect modal
+    if (!isConnected) {
+      setShowAuthFlow(true);
+      return;
+    }
+
+    // If Circle SA is still initializing, do nothing
+    if (isInitializingCircle || !circleAddress) return;
+
+    // For On-Ramp, require M-Pesa phone number
+    if (!isReversed && !userPhone) {
+      setShowPhoneModal(true);
+      return;
+    }
+
+    await executeSwap(userPhone || undefined);
+  }, [
+    isConnected,
+    isInitializingCircle,
+    circleAddress,
+    isReversed,
+    userPhone,
+    setShowAuthFlow,
+    executeSwap,
+  ]);
+
+  const handlePhoneSuccess = useCallback(async (phone: string) => {
+    setUserPhone(phone);
+    setShowPhoneModal(false);
+    await executeSwap(phone);
+  }, [setUserPhone, executeSwap]);
 
   // Determine button state
   const getButtonState = () => {
@@ -408,6 +436,12 @@ export function SwapWidget() {
           </p>
         </motion.div>
       </div>
+
+      <PhoneNumberModal
+        isOpen={showPhoneModal}
+        onClose={() => setShowPhoneModal(false)}
+        onSuccess={handlePhoneSuccess}
+      />
     </section>
   );
 }

@@ -116,4 +116,68 @@ export const UserService = {
       return null;
     }
   },
+
+  /**
+   * Fetch current user profile (ID, phoneNumber, walletAddress).
+   */
+  async getUserProfile(): Promise<{
+    id: string;
+    phoneNumber: string | null;
+    walletAddress: string | null;
+  } | null> {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/user/profile`, { headers });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data ?? null;
+    } catch (err) {
+      console.error("UserService.getUserProfile error:", err);
+      return null;
+    }
+  },
+
+  /**
+   * Save or update M-Pesa phone number.
+   */
+  async postUserPhone(data: { phoneNumber: string }): Promise<{
+    id: string;
+    phoneNumber: string;
+    walletAddress: string | null;
+  }> {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/user/phone`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(data),
+    });
+
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || "Failed to update phone number.");
+    }
+    return json.data;
+  },
+
+  /**
+   * Link wallet address to user account.
+   */
+  async postUserLinkWallet(data: { walletAddress: string }): Promise<{
+    userId: string;
+    walletAddress: string;
+    phoneNumber?: string | null;
+  }> {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/user/link-wallet`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(data),
+    });
+
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || "Failed to link wallet.");
+    }
+    return json.data;
+  },
 };

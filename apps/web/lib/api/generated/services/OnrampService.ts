@@ -21,6 +21,10 @@ export class OnrampService {
              * Amount in KES to convert
              */
             fiatAmount: number;
+            /**
+             * M-Pesa phone number for the STK push (e.g. +254712345678). Optional — falls back to user profile.
+             */
+            phoneNumber?: string;
         },
     ): CancelablePromise<{
         success?: boolean;
