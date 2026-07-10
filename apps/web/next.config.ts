@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/v1/:path*",
-        destination: ${cleanBaseUrl}/:path*,
+        destination: `${cleanBaseUrl}/:path*`,
       },
     ];
   },
