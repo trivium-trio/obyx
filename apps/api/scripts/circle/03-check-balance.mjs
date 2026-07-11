@@ -17,7 +17,7 @@ const client = initiateDeveloperControlledWalletsClient({
 
 try {
   console.log(`Checking balances for Treasury Wallet ID: ${walletId}...`);
-  const res = await client.listBalances({ walletId });
+  const res = await client.getWalletTokenBalance({ id: walletId });
   console.log('\nTreasury Balances:');
   console.log(JSON.stringify(res.data?.tokenBalances, null, 2));
 } catch (error) {

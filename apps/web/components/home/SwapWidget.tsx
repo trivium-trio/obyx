@@ -21,8 +21,13 @@ import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
 import { PhoneNumberModal } from "@/components/dashboard/PhoneNumberModal";
 
 export function SwapWidget() {
-  const [fiatCurrency, setFiatCurrency] = useState<Currency>(currencies[0]);
-  const [cryptoToken, setCryptoToken] = useState<Token>(tokens[0]);
+  const { refreshTransactions, transactions } = useTransactionHistory();
+
+  const availableCurrencies = useMemo(() => currencies.filter((c) => c.code === "KSH"), []);
+  const availableTokens = useMemo(() => tokens.filter((t) => t.symbol === "USDC"), []);
+
+  const [fiatCurrency, setFiatCurrency] = useState<Currency>(availableCurrencies[0]);
+  const [cryptoToken, setCryptoToken] = useState<Token>(availableTokens[0]);
   const [fiatAmount, setFiatAmount] = useState<string>("10000");
   const [isReversed, setIsReversed] = useState(false);
   const [showFiatDropdown, setShowFiatDropdown] = useState(false);
@@ -47,7 +52,6 @@ export function SwapWidget() {
     sendGaslessSwap,
   } = useWallet();
   const { setShowAuthFlow } = useDynamicContext();
-  const { refreshTransactions } = useTransactionHistory();
 
   const rate = conversionRates[cryptoToken.symbol]?.[fiatCurrency.code] ?? 1;
 
@@ -179,6 +183,27 @@ export function SwapWidget() {
     await executeSwap(phone);
   }, [setUserPhone, executeSwap]);
 
+  const hasPendingTransaction = useMemo(() => {
+    return transactions.some(
+      (tx) => {
+        const isPendingStatus = tx.status === "PENDING" ||
+          tx.status === "FIAT_PROCESSING" ||
+          tx.status === "FIAT_RECEIVED" ||
+          tx.status === "CRYPTO_PROCESSING";
+          
+        if (!isPendingStatus) return false;
+        
+        // Ignore stale pending transactions (older than 5 minutes)
+        if (tx.updatedAt) {
+          const txTime = new Date(tx.updatedAt).getTime();
+          const now = Date.now();
+          if (now - txTime > 5 * 60 * 1000) return false;
+        }
+        return true;
+      }
+    );
+  }, [transactions]);
+
   // Determine button state
   const getButtonState = () => {
     if (!isConnected)
@@ -187,8 +212,15 @@ export function SwapWidget() {
       return { label: "Initializing Smart Account…", disabled: true, showLoader: true };
     if (!circleAddress)
       return { label: "Smart Account Not Ready", disabled: true, showShield: true };
+    if (hasPendingTransaction)
+      return { label: "Previous Swap Processing…", disabled: true, showLoader: true };
     if (isSwapping)
       return { label: "Executing Swap…", disabled: true, showLoader: true };
+      
+    const amt = parseFloat(fiatAmount.replace(/,/g, "")) || 0;
+    if (amt <= 0)
+      return { label: "Enter Amount", disabled: true, showShield: true };
+
     return { label: "Swap (Gasless)", disabled: false, showShield: true };
   };
 
@@ -224,56 +256,12 @@ export function SwapWidget() {
               {isReversed ? "You receive" : "You pay"}
             </label>
             <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4">
-              {/* Currency Selector */}
+              {/* Currency Selector (Static) */}
               <div className="relative">
-                <button
-                  onClick={() => {
-                    setShowFiatDropdown(!showFiatDropdown);
-                    setShowCryptoDropdown(false);
-                  }}
-                  className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm font-medium text-white hover:bg-white/[0.1] transition-colors"
-                >
+                <div className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm font-medium text-white">
                   <span className="text-lg">{fiatCurrency.flag}</span>
                   <span>{fiatCurrency.code}</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-white/40" />
-                </button>
-
-                <AnimatePresence>
-                  {showFiatDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -5, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full mt-2 left-0 z-30 w-48 rounded-xl glass-strong p-2"
-                    >
-                      {currencies.map((c) => (
-                        <button
-                          key={c.code}
-                          onClick={() => {
-                            setFiatCurrency(c);
-                            setShowFiatDropdown(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                            c.code === fiatCurrency.code
-                              ? "bg-neon-orange/10 text-neon-orange"
-                              : "text-white/60 hover:bg-white/[0.06] hover:text-white"
-                          )}
-                        >
-                          <span className="text-lg">{c.flag}</span>
-                          <span className="font-medium">{c.code}</span>
-                          <span className="text-xs text-white/30 ml-auto">
-                            {c.name}
-                          </span>
-                          {c.code === fiatCurrency.code && (
-                            <Check className="h-3.5 w-3.5 text-neon-orange ml-1" />
-                          )}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                </div>
               </div>
 
               {/* Amount Input */}
@@ -313,56 +301,12 @@ export function SwapWidget() {
               {isReversed ? "You pay" : "You receive"}
             </label>
             <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4">
-              {/* Token Selector */}
+              {/* Token Selector (Static) */}
               <div className="relative">
-                <button
-                  onClick={() => {
-                    setShowCryptoDropdown(!showCryptoDropdown);
-                    setShowFiatDropdown(false);
-                  }}
-                  className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm font-medium text-white hover:bg-white/[0.1] transition-colors"
-                >
+                <div className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm font-medium text-white">
                   <span className="text-lg">{cryptoToken.icon}</span>
                   <span>{cryptoToken.symbol}</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-white/40" />
-                </button>
-
-                <AnimatePresence>
-                  {showCryptoDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -5, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full mt-2 left-0 z-30 w-48 rounded-xl glass-strong p-2"
-                    >
-                      {tokens.map((t) => (
-                        <button
-                          key={t.symbol}
-                          onClick={() => {
-                            setCryptoToken(t);
-                            setShowCryptoDropdown(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                            t.symbol === cryptoToken.symbol
-                              ? "bg-neon-orange/10 text-neon-orange"
-                              : "text-white/60 hover:bg-white/[0.06] hover:text-white"
-                          )}
-                        >
-                          <span className="text-lg">{t.icon}</span>
-                          <span className="font-medium">{t.symbol}</span>
-                          <span className="text-xs text-white/30 ml-auto">
-                            {t.name}
-                          </span>
-                          {t.symbol === cryptoToken.symbol && (
-                            <Check className="h-3.5 w-3.5 text-neon-orange ml-1" />
-                          )}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                </div>
               </div>
 
               {/* Computed Value */}
