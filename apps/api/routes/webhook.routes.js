@@ -116,13 +116,13 @@ router.post('/paystack', verifyPaystackWebhook, async (req, res) => {
         parseFloat(transaction.cryptoAmount)
       );
 
-      // --- Step 5: Mark as COMPLETED with the blockchain tx hash ---
+      // --- Step 5: Mark as CRYPTO_PROCESSING with the circleTxId ---
       await transaction.update({
-        status: 'COMPLETED',
-        txHash: circleResult.txHash,
+        status: 'CRYPTO_PROCESSING',
+        circleTxId: circleResult.txId,
       });
 
-      console.log(`[WEBHOOK] transaction ${transaction.id} COMPLETED | txHash: ${circleResult.txHash}`);
+      console.log(`[WEBHOOK] transaction ${transaction.id} CRYPTO_PROCESSING | circleTxId: ${circleResult.txId}`);
     } catch (circleError) {
       // Circle call failed — mark transaction as FAILED for manual review
       console.error(`[WEBHOOK] Circle disbursement failed for tx ${transaction.id}:`, circleError);
@@ -132,6 +132,48 @@ router.post('/paystack', verifyPaystackWebhook, async (req, res) => {
   } catch (err) {
     // We already sent 200, so just log the error for debugging
     console.error('[WEBHOOK] Unexpected error processing webhook:', err);
+  }
+});
+
+/**
+ * @openapi
+ * /webhooks/circle:
+ *   post:
+ *     summary: Circle Webhook handler
+ *     description: Handles outbound transaction state changes from Circle
+ *     tags:
+ *       - Webhooks
+ */
+router.post('/circle', async (req, res) => {
+  res.status(200).send('OK'); // Acknowledge immediately
+
+  try {
+    const event = req.body;
+    
+    // Check if it's an outbound transaction update
+    if (event.notificationType === 'transactions.outbound') {
+      const txId = event.transaction?.id;
+      const state = event.transaction?.state;
+      const txHash = event.transaction?.txHash;
+
+      if (!txId) return;
+
+      const transaction = await Transaction.findOne({ where: { circleTxId: txId } });
+      if (!transaction) return;
+
+      if (state === 'COMPLETE') {
+        await transaction.update({
+          status: 'COMPLETED',
+          txHash: txHash || transaction.txHash
+        });
+        console.log(`[CIRCLE_WEBHOOK] Transaction ${transaction.id} COMPLETED | txHash: ${txHash}`);
+      } else if (state === 'FAILED') {
+        await transaction.update({ status: 'FAILED' });
+        console.error(`[CIRCLE_WEBHOOK] Transaction ${transaction.id} FAILED in Circle`);
+      }
+    }
+  } catch (err) {
+    console.error('[CIRCLE_WEBHOOK] Error:', err);
   }
 });
 

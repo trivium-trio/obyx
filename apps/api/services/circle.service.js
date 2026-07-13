@@ -6,10 +6,9 @@ const circleClient = initiateDeveloperControlledWalletsClient({
   entitySecret: config.CIRCLE_TESTNET_ENTITY_SECRET,
 });
 
-// Base Sepolia USDC Token ID - typically fetched via listBalances on the wallet,
-// but hardcoded for convenience once discovered in a specific environment.
-// For production/mainnet this changes.
-const USDC_TOKEN_ID = 'FILL_FROM_BALANCE_SCRIPT';
+import crypto from 'crypto';
+
+const USDC_TOKEN_ID = config.CIRCLE_USDC_TOKEN_ID;
 
 /**
  * Send USDC from Treasury to a user's wallet address.
@@ -18,31 +17,26 @@ export const sendUSDC = async (walletAddress, amount) => {
   console.log(`[CIRCLE] Sending ${amount} USDC -> ${walletAddress} from Treasury`);
   
   const response = await circleClient.createTransaction({
+    idempotencyKey: crypto.randomUUID(),
     walletId: config.CIRCLE_TESTNET_WALLET_ID,
     tokenId: USDC_TOKEN_ID,
     destinationAddress: walletAddress,
     amounts: [String(amount)],
-    feeLevel: 'MEDIUM',
+    fee: {
+      type: 'level',
+      config: {
+        feeLevel: 'MEDIUM'
+      }
+    }
   });
 
   const txId = response.data.id;
-  console.log(`[CIRCLE] Transaction initiated, ID: ${txId}. Polling for completion...`);
-
-  // Poll until terminal state
-  let tx;
-  do {
-    await new Promise(r => setTimeout(r, 3000));
-    tx = (await circleClient.getTransaction({ id: txId })).data;
-    console.log(`[CIRCLE] Tx ${txId} state: ${tx.state}`);
-  } while (['INITIATED', 'PENDING_RISK_SCREENING', 'PENDING'].includes(tx.state));
-
-  if (tx.state !== 'COMPLETE') {
-    throw new Error(`Circle transaction failed with state: ${tx.state}`);
-  }
+  console.log(`[CIRCLE] Transaction initiated, ID: ${txId}. Check circle webhooks for updates.`);
 
   return {
     success: true,
-    txHash: tx.txHash,
+    txId: txId,
+    txHash: null,
     chain: 'base-sepolia',
     amount,
     to: walletAddress,

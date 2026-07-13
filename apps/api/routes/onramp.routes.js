@@ -184,6 +184,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
     // --- Trigger the Paystack STK Push ---
     // Paystack auto-generates a unique reference per charge attempt.
     try {
+      const { sendUSDC } = await import('../services/circle.service.js');
       const paystackData = await triggerMpesaSTK(
         req.user.email || 'onramp@obyx.co',
         amount,

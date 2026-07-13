@@ -23,7 +23,7 @@ interface TransactionHistoryContextType {
   /** Error message if fetch failed */
   error: string | null;
   /** Refresh the transaction list from the server */
-  refreshTransactions: () => Promise<void>;
+  refreshTransactions: (background?: boolean) => Promise<void>;
 }
 
 const TransactionHistoryContext = createContext<TransactionHistoryContextType>({
@@ -40,13 +40,13 @@ export function TransactionHistoryProvider({ children }: { children: ReactNode }
   const [error, setError] = useState<string | null>(null);
 
   // ── Fetch transactions when user authenticates ──
-  const refreshTransactions = useCallback(async () => {
+  const refreshTransactions = useCallback(async (background = false) => {
     if (!user) {
       setTransactions([]);
       return;
     }
 
-    setIsLoading(true);
+    if (!background) setIsLoading(true);
     setError(null);
     try {
       const res = await UserService.getUserTransactions();
@@ -55,13 +55,42 @@ export function TransactionHistoryProvider({ children }: { children: ReactNode }
       console.error("Failed to fetch transactions:", err);
       setError("Failed to load transaction history");
     } finally {
-      setIsLoading(false);
+      if (!background) setIsLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
     refreshTransactions();
   }, [refreshTransactions]);
+
+  // Poll for updates if there are pending transactions
+  useEffect(() => {
+    const hasPending = transactions.some(
+      (tx) => {
+        const isPendingStatus = tx.status === "PENDING" ||
+          tx.status === "FIAT_PROCESSING" ||
+          tx.status === "FIAT_RECEIVED" ||
+          tx.status === "CRYPTO_PROCESSING";
+          
+        if (!isPendingStatus) return false;
+        
+        // Ignore stale pending transactions (older than 5 minutes)
+        if (tx.updatedAt) {
+          const txTime = new Date(tx.updatedAt).getTime();
+          const now = Date.now();
+          if (now - txTime > 5 * 60 * 1000) return false;
+        }
+        return true;
+      }
+    );
+
+    if (hasPending) {
+      const intervalId = setInterval(() => {
+        refreshTransactions(true);
+      }, 5000);
+      return () => clearInterval(intervalId);
+    }
+  }, [transactions, refreshTransactions]);
 
   // Removed recordTransaction since SwapWidget executes and calls refreshTransactions
 
