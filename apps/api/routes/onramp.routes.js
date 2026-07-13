@@ -171,7 +171,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
     const transaction = await Transaction.create({
       userId,
       type: 'ONRAMP',
-      status: 'PENDING',
+      status: 'INITIATED',
       fiatAmount: amount,
       fiatCurrency: 'KES',
       cryptoAmount,
@@ -194,7 +194,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
 
       // Store the Paystack reference on the transaction
       await transaction.update({
-        status: 'FIAT_PROCESSING',
+        status: 'PROMPT_SENT',
         paystackReference: paystackData.reference,
       });
 
