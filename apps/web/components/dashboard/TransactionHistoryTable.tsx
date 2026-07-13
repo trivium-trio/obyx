@@ -74,7 +74,7 @@ export function TransactionHistoryTable() {
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
-          onClick={refreshTransactions}
+          onClick={() => refreshTransactions()}
           disabled={isLoading}
           className="p-1.5 rounded-lg text-white/25 hover:text-white/50 hover:bg-white/[0.04] transition-colors disabled:opacity-50"
           aria-label="Refresh transactions"
@@ -119,7 +119,7 @@ export function TransactionHistoryTable() {
         <div className="px-5 py-8 text-center">
           <p className="text-xs text-danger/70">{error}</p>
           <button
-            onClick={refreshTransactions}
+            onClick={() => refreshTransactions()}
             className="mt-2 text-[11px] text-white/30 hover:text-white/50 underline transition-colors"
           >
             Try again

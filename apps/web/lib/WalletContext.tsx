@@ -17,7 +17,7 @@ import {
   sendGaslessTransfer,
   USDC_DECIMALS,
 } from "@/lib/circle";
-import { UserService } from "@/lib/api/client";
+import { UserService } from "@/lib/UserService";
 
 // ── Types ──
 interface WalletContextType {
@@ -25,6 +25,10 @@ interface WalletContextType {
   walletAddress: string | null;
   /** Circle Smart Account address on Base Sepolia */
   circleAddress: string | null;
+  /** User M-Pesa phone number on file */
+  userPhone: string | null;
+  /** Set user phone number locally */
+  setUserPhone: (phone: string | null) => void;
   /** Whether a wallet is connected via Dynamic */
   isConnected: boolean;
   /** Whether the Circle Smart Account is initializing */
@@ -47,6 +51,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [circleAddress, setCircleAddress] = useState<string | null>(null);
+  const [userPhone, setUserPhone] = useState<string | null>(null);
   const [isInitializingCircle, setIsInitializingCircle] = useState(false);
   const [circleError, setCircleError] = useState<string | null>(null);
 
@@ -56,12 +61,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const isConnected = !!primaryWallet;
 
-  // ── Initialize Circle Smart Account when wallet connects ──
+  // ── Initialize Circle Smart Account & fetch profile when wallet connects ──
   useEffect(() => {
     if (!primaryWallet || !isEthereumWallet(primaryWallet)) {
-      // Reset state when wallet disconnects
       setWalletAddress(null);
       setCircleAddress(null);
+      setUserPhone(null);
       setCircleError(null);
       bundlerClientRef.current = null;
       initAttemptedForRef.current = null;
@@ -71,7 +76,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const addr = primaryWallet.address;
     setWalletAddress(addr);
 
-    // Don't re-init if we already initialized for this address
+    // Fetch profile for existing phone number
+    UserService.getUserProfile().then((profile) => {
+      if (profile?.phoneNumber) {
+        setUserPhone(profile.phoneNumber);
+      }
+    });
+
     if (initAttemptedForRef.current === addr) return;
     initAttemptedForRef.current = addr;
 
@@ -79,11 +90,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setIsInitializingCircle(true);
       setCircleError(null);
       try {
-        // Use connector for Dynamic SDK version 4.x
-        const walletClient = await (primaryWallet!.connector as any).getWalletClient();
+        let walletClient: any;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          try {
+            walletClient = await (primaryWallet!.connector as any).getWalletClient();
+            if (walletClient) break;
+          } catch (e: any) {
+            if (attempt === 4) throw e;
+            await new Promise((r) => setTimeout(r, 600));
+          }
+        }
         
-        // Dynamic's walletClient may not have .account set.
-        // Patch it with the known address so circle.ts walletClientToOwner() works.
         if (!walletClient.account) {
           walletClient.account = {
             address: addr as `0x${string}`,
@@ -97,12 +114,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         bundlerClientRef.current = bundlerClient;
         setCircleAddress(smartAccount.address);
         
-        // Auto-link wallet to the user's account
         try {
-          await UserService.postUserLinkWallet({ walletAddress: addr });
-          console.log("[WALLET] Linked wallet to backend:", addr);
+          const res = await UserService.postUserLinkWallet({ walletAddress: smartAccount.address });
+          if (res.phoneNumber) {
+            setUserPhone(res.phoneNumber);
+          }
+          console.log("[WALLET] Linked wallet to backend:", smartAccount.address);
         } catch (linkErr) {
-          // Don't fail Circle init if wallet link fails (user might not be logged in)
           console.warn("[WALLET] Failed to link wallet (non-fatal):", linkErr);
         }
       } catch (err) {
@@ -125,7 +143,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         throw new Error("Circle Smart Account not initialized");
       }
 
-      // Convert human-readable amount to base units (6 decimals for USDC)
       const amount = BigInt(Math.round(usdcAmount * 10 ** USDC_DECIMALS));
 
       const { userOpHash, receipt } = await sendGaslessTransfer({
@@ -151,9 +168,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
     setWalletAddress(null);
     setCircleAddress(null);
+    setUserPhone(null);
     setCircleError(null);
     bundlerClientRef.current = null;
     initAttemptedForRef.current = null;
+    // Clear Dynamic Labs cached wallet state from localStorage
+    if (typeof window !== 'undefined') {
+      Object.keys(localStorage).forEach((key) => {
+        if (
+          key.startsWith('dynamic_') ||
+          key.includes('walletconnect') ||
+          key.includes('wagmi') ||
+          key.includes('dynamic')
+        ) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
   }, [handleLogOut]);
 
   return (
@@ -161,6 +192,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       value={{
         walletAddress,
         circleAddress,
+        userPhone,
+        setUserPhone,
         isConnected,
         isInitializingCircle,
         circleError,

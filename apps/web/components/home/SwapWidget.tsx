@@ -18,14 +18,21 @@ import { useWallet } from "@/lib/WalletContext";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { OnrampService, OfframpService } from "@/lib/api/client";
 import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
+import { PhoneNumberModal } from "@/components/dashboard/PhoneNumberModal";
 
 export function SwapWidget() {
-  const [fiatCurrency, setFiatCurrency] = useState<Currency>(currencies[0]);
-  const [cryptoToken, setCryptoToken] = useState<Token>(tokens[0]);
+  const { refreshTransactions, transactions } = useTransactionHistory();
+
+  const availableCurrencies = useMemo(() => currencies.filter((c) => c.code === "KSH"), []);
+  const availableTokens = useMemo(() => tokens.filter((t) => t.symbol === "USDC"), []);
+
+  const [fiatCurrency, setFiatCurrency] = useState<Currency>(availableCurrencies[0]);
+  const [cryptoToken, setCryptoToken] = useState<Token>(availableTokens[0]);
   const [fiatAmount, setFiatAmount] = useState<string>("10000");
   const [isReversed, setIsReversed] = useState(false);
   const [showFiatDropdown, setShowFiatDropdown] = useState(false);
   const [showCryptoDropdown, setShowCryptoDropdown] = useState(false);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
 
   // Swap execution state
   const [isSwapping, setIsSwapping] = useState(false);
@@ -40,10 +47,11 @@ export function SwapWidget() {
     isConnected,
     isInitializingCircle,
     circleAddress,
+    userPhone,
+    setUserPhone,
     sendGaslessSwap,
   } = useWallet();
   const { setShowAuthFlow } = useDynamicContext();
-  const { refreshTransactions } = useTransactionHistory();
 
   const rate = conversionRates[cryptoToken.symbol]?.[fiatCurrency.code] ?? 1;
 
@@ -65,18 +73,8 @@ export function SwapWidget() {
     setIsReversed((prev) => !prev);
   }, []);
 
-  // Handle CTA button click
-  const handleCTAClick = useCallback(async () => {
-    // If not connected, open Dynamic wallet connect modal
-    if (!isConnected) {
-      setShowAuthFlow(true);
-      return;
-    }
-
-    // If Circle SA is still initializing, do nothing
-    if (isInitializingCircle || !circleAddress) return;
-
-    // Execute swap
+  // Core swap execution
+  const executeSwap = useCallback(async (phone?: string) => {
     setIsSwapping(true);
     setSwapError(null);
     setSwapResult(null);
@@ -86,15 +84,42 @@ export function SwapWidget() {
       const usdcAmount = amt / rate;
 
       if (!isReversed) {
-        // ON-RAMP: fiat -> crypto
-        const res = await OnrampService.postOnrampInit({ fiatAmount: amt });
-        setSwapResult({ txHash: res.data?.transactionId || "pending", userOpHash: "" });
+        // ON-RAMP: fiat -> crypto — pass phone directly to the API
+        const res = await OnrampService.postOnrampInit({
+          fiatAmount: amt,
+          ...(phone ? { phoneNumber: phone } : {}),
+        });
+        const transactionId = res.data?.transactionId;
+        if (!transactionId) throw new Error("No transaction ID returned");
+
+        // Poll for status until completed or failed
+        let currentStatus = res.data?.status;
+        let attempts = 0;
+        
+        while (currentStatus !== 'COMPLETED' && currentStatus !== 'FAILED' && attempts < 20) {
+          await new Promise((resolve) => setTimeout(resolve, 3000)); // poll every 3s
+          const statusRes = await OnrampService.getOnrampStatus(transactionId);
+          currentStatus = statusRes.data?.status;
+          attempts++;
+        }
+
+        if (currentStatus === 'FAILED') {
+          throw new Error("M-Pesa payment failed or was cancelled.");
+        }
+        
+        if (currentStatus !== 'COMPLETED') {
+          throw new Error("Payment is taking longer than expected. Check your transaction history.");
+        }
+
+        // Wait a brief moment to ensure the transaction record includes the txHash from Circle
+        const finalStatus = await OnrampService.getOnrampStatus(transactionId);
+        setSwapResult({ txHash: finalStatus.data?.txHash || "pending", userOpHash: "" });
       } else {
         // OFF-RAMP: crypto -> fiat
         const res = await OfframpService.postOfframpInit({ usdcAmount });
 
         // Execute gasless transfer to treasury
-        const gaslessResult = await sendGaslessSwap(circleAddress, usdcAmount);
+        const gaslessResult = await sendGaslessSwap(circleAddress!, usdcAmount);
         const actualTxHash = gaslessResult.txHash;
 
         // Confirm
@@ -116,16 +141,68 @@ export function SwapWidget() {
       setIsSwapping(false);
     }
   }, [
-    isConnected,
-    isInitializingCircle,
-    circleAddress,
     fiatAmount,
     isReversed,
     rate,
+    circleAddress,
     sendGaslessSwap,
-    setShowAuthFlow,
-    refreshTransactions
+    refreshTransactions,
   ]);
+
+  // Handle CTA button click
+  const handleCTAClick = useCallback(async () => {
+    // If not connected, open Dynamic wallet connect modal
+    if (!isConnected) {
+      setShowAuthFlow(true);
+      return;
+    }
+
+    // If Circle SA is still initializing, do nothing
+    if (isInitializingCircle || !circleAddress) return;
+
+    // For On-Ramp, require M-Pesa phone number
+    if (!isReversed && !userPhone) {
+      setShowPhoneModal(true);
+      return;
+    }
+
+    await executeSwap(userPhone || undefined);
+  }, [
+    isConnected,
+    isInitializingCircle,
+    circleAddress,
+    isReversed,
+    userPhone,
+    setShowAuthFlow,
+    executeSwap,
+  ]);
+
+  const handlePhoneSuccess = useCallback(async (phone: string) => {
+    setUserPhone(phone);
+    setShowPhoneModal(false);
+    await executeSwap(phone);
+  }, [setUserPhone, executeSwap]);
+
+  const hasPendingTransaction = useMemo(() => {
+    return transactions.some(
+      (tx) => {
+        const isPendingStatus = tx.status === "PENDING" ||
+          tx.status === "FIAT_PROCESSING" ||
+          tx.status === "FIAT_RECEIVED" ||
+          tx.status === "CRYPTO_PROCESSING";
+          
+        if (!isPendingStatus) return false;
+        
+        // Ignore stale pending transactions (older than 5 minutes)
+        if (tx.updatedAt) {
+          const txTime = new Date(tx.updatedAt).getTime();
+          const now = Date.now();
+          if (now - txTime > 5 * 60 * 1000) return false;
+        }
+        return true;
+      }
+    );
+  }, [transactions]);
 
   // Determine button state
   const getButtonState = () => {
@@ -135,8 +212,15 @@ export function SwapWidget() {
       return { label: "Initializing Smart Account…", disabled: true, showLoader: true };
     if (!circleAddress)
       return { label: "Smart Account Not Ready", disabled: true, showShield: true };
+    if (hasPendingTransaction)
+      return { label: "Previous Swap Processing…", disabled: true, showLoader: true };
     if (isSwapping)
       return { label: "Executing Swap…", disabled: true, showLoader: true };
+      
+    const amt = parseFloat(fiatAmount.replace(/,/g, "")) || 0;
+    if (amt <= 0)
+      return { label: "Enter Amount", disabled: true, showShield: true };
+
     return { label: "Swap (Gasless)", disabled: false, showShield: true };
   };
 
@@ -172,56 +256,12 @@ export function SwapWidget() {
               {isReversed ? "You receive" : "You pay"}
             </label>
             <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4">
-              {/* Currency Selector */}
+              {/* Currency Selector (Static) */}
               <div className="relative">
-                <button
-                  onClick={() => {
-                    setShowFiatDropdown(!showFiatDropdown);
-                    setShowCryptoDropdown(false);
-                  }}
-                  className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm font-medium text-white hover:bg-white/[0.1] transition-colors"
-                >
+                <div className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm font-medium text-white">
                   <span className="text-lg">{fiatCurrency.flag}</span>
                   <span>{fiatCurrency.code}</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-white/40" />
-                </button>
-
-                <AnimatePresence>
-                  {showFiatDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -5, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full mt-2 left-0 z-30 w-48 rounded-xl glass-strong p-2"
-                    >
-                      {currencies.map((c) => (
-                        <button
-                          key={c.code}
-                          onClick={() => {
-                            setFiatCurrency(c);
-                            setShowFiatDropdown(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                            c.code === fiatCurrency.code
-                              ? "bg-neon-orange/10 text-neon-orange"
-                              : "text-white/60 hover:bg-white/[0.06] hover:text-white"
-                          )}
-                        >
-                          <span className="text-lg">{c.flag}</span>
-                          <span className="font-medium">{c.code}</span>
-                          <span className="text-xs text-white/30 ml-auto">
-                            {c.name}
-                          </span>
-                          {c.code === fiatCurrency.code && (
-                            <Check className="h-3.5 w-3.5 text-neon-orange ml-1" />
-                          )}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                </div>
               </div>
 
               {/* Amount Input */}
@@ -261,56 +301,12 @@ export function SwapWidget() {
               {isReversed ? "You pay" : "You receive"}
             </label>
             <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4">
-              {/* Token Selector */}
+              {/* Token Selector (Static) */}
               <div className="relative">
-                <button
-                  onClick={() => {
-                    setShowCryptoDropdown(!showCryptoDropdown);
-                    setShowFiatDropdown(false);
-                  }}
-                  className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm font-medium text-white hover:bg-white/[0.1] transition-colors"
-                >
+                <div className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm font-medium text-white">
                   <span className="text-lg">{cryptoToken.icon}</span>
                   <span>{cryptoToken.symbol}</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-white/40" />
-                </button>
-
-                <AnimatePresence>
-                  {showCryptoDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -5, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full mt-2 left-0 z-30 w-48 rounded-xl glass-strong p-2"
-                    >
-                      {tokens.map((t) => (
-                        <button
-                          key={t.symbol}
-                          onClick={() => {
-                            setCryptoToken(t);
-                            setShowCryptoDropdown(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                            t.symbol === cryptoToken.symbol
-                              ? "bg-neon-orange/10 text-neon-orange"
-                              : "text-white/60 hover:bg-white/[0.06] hover:text-white"
-                          )}
-                        >
-                          <span className="text-lg">{t.icon}</span>
-                          <span className="font-medium">{t.symbol}</span>
-                          <span className="text-xs text-white/30 ml-auto">
-                            {t.name}
-                          </span>
-                          {t.symbol === cryptoToken.symbol && (
-                            <Check className="h-3.5 w-3.5 text-neon-orange ml-1" />
-                          )}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                </div>
               </div>
 
               {/* Computed Value */}
@@ -408,6 +404,12 @@ export function SwapWidget() {
           </p>
         </motion.div>
       </div>
+
+      <PhoneNumberModal
+        isOpen={showPhoneModal}
+        onClose={() => setShowPhoneModal(false)}
+        onSuccess={handlePhoneSuccess}
+      />
     </section>
   );
 }
