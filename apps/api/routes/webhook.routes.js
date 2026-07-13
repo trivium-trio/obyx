@@ -45,92 +45,31 @@ IMPORTANT: Always respond 200 quickly — Paystack retries on timeout.
  *                   type: boolean
  *                   example: true
  */
+import { reconcilePaid, reconcileFailed } from '../services/reconciliation.service.js';
+
 router.post('/paystack', verifyPaystackWebhook, async (req, res) => {
   // Always acknowledge receipt immediately to prevent Paystack retries.
-  // We process asynchronously below.
   res.status(200).json({ received: true });
 
   try {
     const event = req.body;
-    if (event.event !== 'charge.success') {
-      console.log(`[WEBHOOK] Ignoring event type: ${event.event}`);
-      return;
-    }
-
     const paymentData = event.data;
+    if (!paymentData || !paymentData.reference) return;
+
     const reference = paymentData.reference;
 
-    console.log(`[WEBHOOK] Processing charge.success for reference: ${reference}`);
-
-    // --- Step 1: Find the transaction by Paystack reference ---
-    const transaction = await Transaction.findOne({
-      where: { paystackReference: reference },
-    });
-
-    if (!transaction) {
-      console.error(`[WEBHOOK] No transaction found for reference: ${reference}`);
-      return;
-    }
-
-    // Prevent duplicate processing (idempotency guard)
-    if (transaction.status === 'COMPLETED' || transaction.status === 'CRYPTO_PROCESSING') {
-      console.warn(`[WEBHOOK] Transaction ${transaction.id} already processed (status: ${transaction.status})`);
-      return;
-    }
-
-    // --- Step 1.5: Verify Amount and Currency ---
-    // Paystack amounts are in the lowest currency unit (e.g., cents/kobo)
-    const expectedAmount = Math.round(transaction.fiatAmount * 100);
-    if (paymentData.amount !== expectedAmount) {
-      console.error(`[WEBHOOK] Amount mismatch for tx ${transaction.id}. Expected ${expectedAmount}, got ${paymentData.amount}`);
-      await transaction.update({ status: 'FAILED' });
-      return;
-    }
-
-    if (paymentData.currency !== transaction.fiatCurrency) {
-      console.error(`[WEBHOOK] Currency mismatch for tx ${transaction.id}. Expected ${transaction.fiatCurrency}, got ${paymentData.currency}`);
-      await transaction.update({ status: 'FAILED' });
-      return;
-    }
-
-    // --- Step 2: Update status to FIAT_RECEIVED ---
-    await transaction.update({ status: 'FIAT_RECEIVED' });
-    console.log(`[WEBHOOK] Transaction ${transaction.id} -> FIAT_RECEIVED`);
-
-    // --- Step 3: Fetch the user to get their wallet address ---
-    const user = await User.findByPk(transaction.userId);
-
-    if (!user || !user.walletAddress) {
-      console.error(`[WEBHOOK] User ${transaction.userId} has no wallet address. Cannot disburse.`);
-      await transaction.update({ status: 'FAILED' });
-      return;
-    }
-
-    // --- Step 4: Send USDC from Treasury to user's wallet ---
-    await transaction.update({ status: 'CRYPTO_PROCESSING' });
-    console.log(`[WEBHOOK] Sending ${transaction.cryptoAmount} USDC -> ${user.walletAddress}`);
-
-    try {
-      const circleResult = await sendUSDC(
-        user.walletAddress,
-        parseFloat(transaction.cryptoAmount)
-      );
-
-      // --- Step 5: Mark as CRYPTO_PROCESSING with the circleTxId ---
-      await transaction.update({
-        status: 'CRYPTO_PROCESSING',
-        circleTxId: circleResult.txId,
-      });
-
-      console.log(`[WEBHOOK] transaction ${transaction.id} CRYPTO_PROCESSING | circleTxId: ${circleResult.txId}`);
-    } catch (circleError) {
-      // Circle call failed — mark transaction as FAILED for manual review
-      console.error(`[WEBHOOK] Circle disbursement failed for tx ${transaction.id}:`, circleError);
-      await transaction.update({ status: 'FAILED' });
-      // TODO: Queue for retry or alert the operations team
+    if (event.event === 'charge.success') {
+      console.log(`[WEBHOOK] charge.success received for ${reference}`);
+      // The reconciliation service handles the idempotent DB transition
+      await reconcilePaid(reference);
+    } else if (event.event === 'charge.failed') {
+      console.log(`[WEBHOOK] charge.failed received for ${reference}`);
+      const reason = paymentData.gateway_response || 'Charge failed';
+      await reconcileFailed(reference, reason);
+    } else {
+      console.log(`[WEBHOOK] Ignoring event type: ${event.event}`);
     }
   } catch (err) {
-    // We already sent 200, so just log the error for debugging
     console.error('[WEBHOOK] Unexpected error processing webhook:', err);
   }
 });

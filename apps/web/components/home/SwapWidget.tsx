@@ -92,28 +92,8 @@ export function SwapWidget() {
         const transactionId = res.data?.transactionId;
         if (!transactionId) throw new Error("No transaction ID returned");
 
-        // Poll for status until completed or failed
-        let currentStatus = res.data?.status;
-        let attempts = 0;
-        
-        while (currentStatus !== 'COMPLETED' && currentStatus !== 'FAILED' && attempts < 20) {
-          await new Promise((resolve) => setTimeout(resolve, 3000)); // poll every 3s
-          const statusRes = await OnrampService.getOnrampStatus(transactionId);
-          currentStatus = statusRes.data?.status;
-          attempts++;
-        }
-
-        if (currentStatus === 'FAILED') {
-          throw new Error("M-Pesa payment failed or was cancelled.");
-        }
-        
-        if (currentStatus !== 'COMPLETED') {
-          throw new Error("Payment is taking longer than expected. Check your transaction history.");
-        }
-
-        // Wait a brief moment to ensure the transaction record includes the txHash from Circle
-        const finalStatus = await OnrampService.getOnrampStatus(transactionId);
-        setSwapResult({ txHash: finalStatus.data?.txHash || "pending", userOpHash: "" });
+        // Fire and Forget: Show optimistic success UI
+        setSwapResult({ txHash: "pending", userOpHash: "pending" });
       } else {
         // OFF-RAMP: crypto -> fiat
         const res = await OfframpService.postOfframpInit({ usdcAmount });
@@ -364,20 +344,24 @@ export function SwapWidget() {
                 className="mt-4 rounded-xl bg-success/10 border border-success/20 p-4"
               >
                 <p className="text-xs text-success font-medium mb-2">
-                  ✓ Swap executed successfully (gasless)
+                  {swapResult.txHash === 'pending'
+                    ? "✓ Prompt sent! Please check your phone to complete."
+                    : "✓ Swap executed successfully (gasless)"}
                 </p>
-                <a
-                  href={`https://sepolia.basescan.org/tx/${swapResult.txHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs font-mono text-success/70 hover:text-success transition-colors"
-                >
-                  <span>
-                    Tx: {swapResult.txHash.slice(0, 10)}...
-                    {swapResult.txHash.slice(-8)}
-                  </span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                {swapResult.txHash !== 'pending' && (
+                  <a
+                    href={`https://sepolia.basescan.org/tx/${swapResult.txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs font-mono text-success/70 hover:text-success transition-colors"
+                  >
+                    <span>
+                      Tx: {swapResult.txHash.slice(0, 10)}...
+                      {swapResult.txHash.slice(-8)}
+                    </span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
