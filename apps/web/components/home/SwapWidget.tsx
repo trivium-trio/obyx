@@ -166,10 +166,10 @@ export function SwapWidget() {
   const hasPendingTransaction = useMemo(() => {
     return transactions.some(
       (tx) => {
-        const isPendingStatus = tx.status === "PENDING" ||
-          tx.status === "FIAT_PROCESSING" ||
-          tx.status === "FIAT_RECEIVED" ||
-          tx.status === "CRYPTO_PROCESSING";
+        const isPendingStatus = tx.status === "INITIATED" ||
+          tx.status === "PROMPT_SENT" ||
+          tx.status === "PAID" ||
+          tx.status === "PAYOUT_QUEUED";
           
         if (!isPendingStatus) return false;
         
