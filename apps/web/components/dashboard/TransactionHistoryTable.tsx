@@ -14,13 +14,13 @@ import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
 
 // ── Status config ──
 const statusConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  COMPLETED: { label: "Completed", color: "text-success", bg: "bg-success/10", dot: "bg-success" },
-  PENDING: { label: "Pending", color: "text-neon-amber", bg: "bg-neon-amber/10", dot: "bg-neon-amber animate-pulse" },
-  FIAT_PROCESSING: { label: "Processing", color: "text-neon-amber", bg: "bg-neon-amber/10", dot: "bg-neon-amber animate-pulse" },
-  FIAT_RECEIVED: { label: "Fiat Received", color: "text-info", bg: "bg-info/10", dot: "bg-info" },
-  CRYPTO_PROCESSING: { label: "Sending Crypto", color: "text-violet-400", bg: "bg-violet-400/10", dot: "bg-violet-400 animate-pulse" },
+  INITIATED: { label: "Initiated", color: "text-white/50", bg: "bg-white/[0.06]", dot: "bg-white/40" },
+  PROMPT_SENT: { label: "Awaiting Payment", color: "text-neon-amber", bg: "bg-neon-amber/10", dot: "bg-neon-amber animate-pulse" },
+  PAID: { label: "Paid", color: "text-info", bg: "bg-info/10", dot: "bg-info" },
+  PAYOUT_QUEUED: { label: "Sending Crypto", color: "text-violet-400", bg: "bg-violet-400/10", dot: "bg-violet-400 animate-pulse" },
+  PAYOUT_SENT: { label: "Completed", color: "text-success", bg: "bg-success/10", dot: "bg-success" },
   FAILED: { label: "Failed", color: "text-danger", bg: "bg-danger/10", dot: "bg-danger" },
-  REFUNDED: { label: "Refunded", color: "text-white/40", bg: "bg-white/[0.06]", dot: "bg-white/40" },
+  PAYOUT_FAILED: { label: "Payout Failed", color: "text-danger", bg: "bg-danger/10", dot: "bg-danger animate-pulse" },
 };
 
 function formatDate(iso: string): string {
@@ -147,7 +147,7 @@ export function TransactionHistoryTable() {
         <div className="max-h-[380px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
           <AnimatePresence initial={false}>
             {transactions.map((tx, index) => {
-              const status = statusConfig[tx.status as string ?? "PENDING"] ?? statusConfig.PENDING;
+              const status = statusConfig[tx.status as string ?? "INITIATED"] ?? statusConfig.INITIATED;
               const isOnramp = tx.type === "ONRAMP";
               const pair = `${tx.fiatCurrency ?? "KES"}/${tx.cryptoCurrency ?? "USDC"}`;
 

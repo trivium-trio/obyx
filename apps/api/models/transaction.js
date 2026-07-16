@@ -21,15 +21,16 @@ export default (sequelize) => {
     },
     status: {
       type: DataTypes.ENUM(
-        'PENDING',           // User clicked buy/sell
-        'FIAT_PROCESSING',   // Paystack prompt sent
-        'FIAT_RECEIVED',     // Paystack successful
-        'CRYPTO_PROCESSING', // Circle transaction sent to blockchain
-        'COMPLETED',         // Entire bridge is done
-        'FAILED',            // Something went wrong
-        'REFUNDED'           // Failed and money sent back
+        'INITIATED',       // row created, before Paystack call made
+        'PROMPT_SENT',     // Paystack returned 200, STK push delivered
+        'PAID',            // Paystack confirmed charge.success (webhook or reconciliation)
+        'PAYOUT_QUEUED',   // payout job enqueued, Circle not yet called
+        'PAYOUT_SENT',     // Circle confirmed transfer
+        'COMPLETE',        // Circle confirmed on-chain completion (txHash available)
+        'FAILED',          // charge.failed or STK timeout, before payment received
+        'PAYOUT_FAILED'    // payment received but Circle send failed — critical state
       ),
-      defaultValue: 'PENDING',
+      defaultValue: 'INITIATED',
     },
     fiatAmount: {
       type: DataTypes.DECIMAL(10, 2), // e.g., 1500.50 KES
@@ -77,6 +78,21 @@ export default (sequelize) => {
       allowNull: true,
       defaultValue: 'Base Sepolia',
       comment: "The blockchain network used"
+    },
+    failureReason: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Populated on FAILED or PAYOUT_FAILED"
+    },
+    paidAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: "Timestamp when payment was confirmed received"
+    },
+    payoutSentAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: "Timestamp when Circle payout was successfully executed"
     }
   }, {
     tableName: 'transactions',
