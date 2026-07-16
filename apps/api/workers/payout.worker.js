@@ -27,19 +27,27 @@ export function startPayoutWorker() {
         if (stale.circleTxId) {
           try {
             const circleData = await getTransferStatus(stale.circleTxId);
-            if (circleData && circleData.state !== 'FAILED') {
-              await sequelize.query(
-                `UPDATE "transactions" SET "status" = 'PAYOUT_SENT' WHERE id = $1`,
-                { bind: [stale.id] }
-              );
-              continue;
+            if (circleData && circleData.state) {
+              if (!['FAILED', 'CANCELLED', 'DENIED'].includes(circleData.state)) {
+                await sequelize.query(
+                  `UPDATE "transactions" SET "status" = 'PAYOUT_SENT', "updatedAt" = now() WHERE id = $1 AND "status" = 'PAYOUT_QUEUED'`,
+                  { bind: [stale.id] }
+                );
+                continue;
+              } else {
+                await sequelize.query(
+                  `UPDATE "transactions" SET "status" = 'PAYOUT_FAILED', "failureReason" = $2, "updatedAt" = now() WHERE id = $1 AND "status" = 'PAYOUT_QUEUED'`,
+                  { bind: [stale.id, `Circle transfer failed with state: ${circleData.state}`] }
+                );
+                continue;
+              }
             }
           } catch (e) {
             console.error('[WORKER] Failed to check Circle for stale tx:', e);
           }
         }
         await sequelize.query(
-          `UPDATE "transactions" SET "status" = 'PAID' WHERE id = $1`,
+          `UPDATE "transactions" SET "status" = 'PAID', "updatedAt" = now() WHERE id = $1 AND "status" = 'PAYOUT_QUEUED'`,
           { bind: [stale.id] }
         );
       }
@@ -47,7 +55,7 @@ export function startPayoutWorker() {
       // Atomically claim one job
       const [rows] = await sequelize.query(
         `UPDATE "transactions"
-         SET "status" = 'PAYOUT_QUEUED'
+         SET "status" = 'PAYOUT_QUEUED', "updatedAt" = now()
          WHERE id = (
            SELECT id FROM "transactions"
            WHERE "status" = 'PAID'
