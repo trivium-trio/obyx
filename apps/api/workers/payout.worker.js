@@ -1,5 +1,5 @@
 import { sequelize, User } from '../models/index.js';
-import { sendUSDC } from '../services/circle.service.js';
+import { sendUSDC, getTransferStatus } from '../services/circle.service.js';
 import fs from 'fs';
 
 function logAlert(message) {
@@ -13,7 +13,37 @@ export function startPayoutWorker() {
   // Polling every 5 seconds
   setInterval(async () => {
     let tx = null;
+    let circleResult = null;
     try {
+      // Sweep stale PAYOUT_QUEUED transactions
+      const [staleTxs] = await sequelize.query(`
+        SELECT * FROM "transactions"
+        WHERE "status" = 'PAYOUT_QUEUED' 
+          AND "updatedAt" < NOW() - interval '2 minutes'
+      `);
+      
+      for (const stale of staleTxs) {
+        console.log(`[WORKER] Sweeping stale tx ${stale.id}`);
+        if (stale.circleTxId) {
+          try {
+            const circleData = await getTransferStatus(stale.circleTxId);
+            if (circleData && circleData.state !== 'FAILED') {
+              await sequelize.query(
+                `UPDATE "transactions" SET "status" = 'PAYOUT_SENT' WHERE id = $1`,
+                { bind: [stale.id] }
+              );
+              continue;
+            }
+          } catch (e) {
+            console.error('[WORKER] Failed to check Circle for stale tx:', e);
+          }
+        }
+        await sequelize.query(
+          `UPDATE "transactions" SET "status" = 'PAID' WHERE id = $1`,
+          { bind: [stale.id] }
+        );
+      }
+
       // Atomically claim one job
       const [rows] = await sequelize.query(
         `UPDATE "transactions"
@@ -39,7 +69,7 @@ export function startPayoutWorker() {
       }
 
       // Execute Circle Transfer using tx.id as idempotencyKey
-      const circleResult = await sendUSDC(
+      circleResult = await sendUSDC(
         user.walletAddress,
         parseFloat(tx.cryptoAmount),
         tx.id // idempotency key
@@ -58,16 +88,30 @@ export function startPayoutWorker() {
     } catch (err) {
       console.error("[WORKER] Error in payout worker loop:", err);
       if (tx && tx.id) {
-        logAlert(`PAYOUT_FAILED for tx ${tx.id}: ${err.message}`);
-        try {
-          await sequelize.query(
-            `UPDATE "transactions"
-             SET "status" = 'PAYOUT_FAILED', "failureReason" = $2
-             WHERE id = $1`,
-            { bind: [tx.id, err.message] }
-          );
-        } catch (dbErr) {
-          console.error("[WORKER] Failed to even update status to PAYOUT_FAILED:", dbErr);
+        if (circleResult && circleResult.txId) {
+          logAlert(`DATABASE_UPDATE_FAILED for tx ${tx.id} after successful Circle transfer ${circleResult.txId}: ${err.message}`);
+          try {
+            await sequelize.query(
+              `UPDATE "transactions"
+               SET "circleTxId" = $2, "failureReason" = $3
+               WHERE id = $1`,
+              { bind: [tx.id, circleResult.txId, 'DB update failed after Circle transfer: ' + err.message] }
+            );
+          } catch (dbErr) {
+            console.error("[WORKER] Failed to persist circleTxId for partial success:", dbErr);
+          }
+        } else {
+          logAlert(`PAYOUT_FAILED for tx ${tx.id}: ${err.message}`);
+          try {
+            await sequelize.query(
+              `UPDATE "transactions"
+               SET "status" = 'PAYOUT_FAILED', "failureReason" = $2
+               WHERE id = $1`,
+              { bind: [tx.id, err.message] }
+            );
+          } catch (dbErr) {
+            console.error("[WORKER] Failed to even update status to PAYOUT_FAILED:", dbErr);
+          }
         }
       }
     }

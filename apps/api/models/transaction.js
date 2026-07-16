@@ -26,6 +26,7 @@ export default (sequelize) => {
         'PAID',            // Paystack confirmed charge.success (webhook or reconciliation)
         'PAYOUT_QUEUED',   // payout job enqueued, Circle not yet called
         'PAYOUT_SENT',     // Circle confirmed transfer
+        'COMPLETE',        // Circle confirmed on-chain completion (txHash available)
         'FAILED',          // charge.failed or STK timeout, before payment received
         'PAYOUT_FAILED'    // payment received but Circle send failed — critical state
       ),

@@ -116,9 +116,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         
         try {
           const res = await UserService.postUserLinkWallet({ walletAddress: addr });
-          if (res.phoneNumber) {
-            setUserPhone(res.phoneNumber);
-          }
+          setUserPhone(res.phoneNumber ?? null);
           console.log("[WALLET] Linked wallet to backend (EOA):", addr);
         } catch (linkErr) {
           console.warn("[WALLET] Failed to link wallet (non-fatal):", linkErr);
