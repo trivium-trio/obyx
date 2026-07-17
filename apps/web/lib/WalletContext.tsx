@@ -112,20 +112,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             await new Promise((r) => setTimeout(r, 600));
           }
         }
-        
+
         if (!walletClient.account) {
           walletClient.account = {
             address: addr as `0x${string}`,
             type: "json-rpc",
           };
         }
-        
+
         const smartAccount = await initCircleSmartAccount(walletClient as any, addr);
         const bundlerClient = createCircleBundlerClient(smartAccount);
 
         bundlerClientRef.current = bundlerClient;
         setCircleAddress(smartAccount.address);
-        
+
         try {
           const res = await UserService.postUserLinkWallet({ walletAddress: addr });
           setUserPhone(res.phoneNumber ?? null);
