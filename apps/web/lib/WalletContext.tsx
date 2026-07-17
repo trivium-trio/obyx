@@ -20,11 +20,19 @@ import {
 import { UserService } from "@/lib/UserService";
 
 // ── Types ──
+type ActiveWalletType = 'embedded' | 'external';
+
 interface WalletContextType {
   /** EOA address from the connected Dynamic wallet */
   walletAddress: string | null;
   /** Circle Smart Account address on Base Sepolia */
   circleAddress: string | null;
+  /** The currently active wallet address (Circle SA or EOA) */
+  activeWalletAddress: string | null;
+  /** Which wallet type is currently active */
+  activeWallet: ActiveWalletType;
+  /** Switch between embedded (Circle SA) and external (EOA) wallet */
+  setActiveWallet: (type: ActiveWalletType) => void;
   /** User M-Pesa phone number on file */
   userPhone: string | null;
   /** Set user phone number locally */
@@ -51,6 +59,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [circleAddress, setCircleAddress] = useState<string | null>(null);
+  const [activeWallet, setActiveWallet] = useState<ActiveWalletType>('embedded');
   const [userPhone, setUserPhone] = useState<string | null>(null);
   const [isInitializingCircle, setIsInitializingCircle] = useState(false);
   const [circleError, setCircleError] = useState<string | null>(null);
@@ -60,6 +69,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const initAttemptedForRef = useRef<string | null>(null);
 
   const isConnected = !!primaryWallet;
+
+  // Compute the active wallet address based on user selection
+  const activeWalletAddress = activeWallet === 'embedded' ? circleAddress : walletAddress;
 
   // ── Initialize Circle Smart Account & fetch profile when wallet connects ──
   useEffect(() => {
@@ -192,6 +204,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       value={{
         walletAddress,
         circleAddress,
+        activeWalletAddress,
+        activeWallet,
+        setActiveWallet,
         userPhone,
         setUserPhone,
         isConnected,

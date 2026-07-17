@@ -40,6 +40,8 @@ export function SwapWidget() {
   // Wallet state
   const {
     isConnected,
+    activeWallet,
+    activeWalletAddress,
     isInitializingCircle,
     circleAddress,
     userPhone,
@@ -112,6 +114,9 @@ export function SwapWidget() {
         setSwapResult({ txHash: finalStatus.data?.txHash || "pending", userOpHash: "" });
       } else {
         // OFF-RAMP: crypto -> fiat
+        if (activeWallet === "external") {
+          throw new Error("Off-ramp from external wallets requires sending on-chain tx. Please switch to your embedded OBYX Wallet for gasless off-ramp.");
+        }
         const res = await OfframpService.postOfframpInit({ usdcAmount });
 
         // Execute gasless transfer to treasury
@@ -140,6 +145,7 @@ export function SwapWidget() {
     fiatAmount,
     isReversed,
     rate,
+    activeWallet,
     circleAddress,
     sendGaslessSwap,
     refreshTransactions,
@@ -153,8 +159,9 @@ export function SwapWidget() {
       return;
     }
 
-    // If Circle SA is still initializing, do nothing
-    if (isInitializingCircle || !circleAddress) return;
+    // Check active wallet readiness
+    if (activeWallet === "embedded" && (isInitializingCircle || !circleAddress)) return;
+    if (activeWallet === "external" && !activeWalletAddress) return;
 
     // For On-Ramp, require M-Pesa phone number
     if (!isReversed && !userPhone) {
@@ -165,6 +172,8 @@ export function SwapWidget() {
     await executeSwap(userPhone || undefined);
   }, [
     isConnected,
+    activeWallet,
+    activeWalletAddress,
     isInitializingCircle,
     circleAddress,
     isReversed,
@@ -183,13 +192,22 @@ export function SwapWidget() {
   const getButtonState = () => {
     if (!isConnected)
       return { label: "Connect Wallet & Swap", disabled: false, showWallet: true };
-    if (isInitializingCircle)
-      return { label: "Initializing Smart Account…", disabled: true, showLoader: true };
-    if (!circleAddress)
-      return { label: "Smart Account Not Ready", disabled: true, showShield: true };
+    if (activeWallet === "embedded") {
+      if (isInitializingCircle)
+        return { label: "Initializing Smart Account…", disabled: true, showLoader: true };
+      if (!circleAddress)
+        return { label: "Smart Account Not Ready", disabled: true, showShield: true };
+    } else {
+      if (!activeWalletAddress)
+        return { label: "Wallet Not Ready", disabled: true, showWallet: true };
+    }
     if (isSwapping)
       return { label: "Executing Swap…", disabled: true, showLoader: true };
-    return { label: "Swap (Gasless)", disabled: false, showShield: true };
+    return {
+      label: activeWallet === "embedded" ? "Swap (Gasless)" : "Swap",
+      disabled: false,
+      showShield: activeWallet === "embedded",
+    };
   };
 
   const buttonState = getButtonState();
@@ -454,8 +472,10 @@ export function SwapWidget() {
 
           {/* ── Fee info ── */}
           <p className="text-center text-[11px] text-white/20 mt-3">
-            {isConnected
+            {isConnected && activeWallet === "embedded"
               ? "0% gas fee · Sponsored by Circle Paymaster · Base Sepolia"
+              : isConnected && activeWallet === "external"
+              ? "Using External Wallet · Base Sepolia"
               : "0.5% flat fee · Powered by on-chain liquidity"}
           </p>
         </motion.div>
