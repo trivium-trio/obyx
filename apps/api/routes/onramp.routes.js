@@ -94,7 +94,7 @@ const MAX_FIAT_AMOUNT = 500000; // Maximum 500,000 KES (~$3,846)
  */
 router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
   try {
-    const { fiatAmount, phoneNumber: rawPhone } = req.body;
+    const { fiatAmount, phoneNumber: rawPhone, walletAddress: requestedWallet } = req.body;
     const userId = req.user.id;
     if (!fiatAmount || isNaN(fiatAmount) || fiatAmount <= 0) {
       return res.status(400).json({
@@ -129,10 +129,12 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
       });
     }
 
-    if (!user.walletAddress) {
+    // --- Resolve destination wallet: prefer the active wallet sent by the frontend, fall back to stored EOA ---
+    const targetWalletAddress = requestedWallet || user.walletAddress;
+    if (!targetWalletAddress) {
       return res.status(400).json({
         success: false,
-        error: 'No wallet linked. Please connect your MetaMask wallet first.',
+        error: 'No wallet address found. Please connect a wallet first.',
       });
     }
 
@@ -177,6 +179,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
       cryptoAmount,
       cryptoCurrency: 'USDC',
       exchangeRate: EXCHANGE_RATE,
+      walletAddress: targetWalletAddress,
     });
 
     console.log(`[ONRAMP] Transaction created: ${transaction.id} | ${amount} KES -> ${cryptoAmount} USDC`);
@@ -189,7 +192,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
         req.user.email || 'onramp@obyx.co',
         amount,
         stkPhone,
-        user.walletAddress || '0x0000000000000000000000000000000000000000'
+        targetWalletAddress
       );
 
       // Store the Paystack reference on the transaction

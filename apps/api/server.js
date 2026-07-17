@@ -37,6 +37,7 @@ app.use(express.json({
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
+app.get('/ping', (req, res) => res.status(200).send('pong'));
 app.get('/', (req, res) => {
   res.json({
     service: 'Obyx API',
@@ -77,6 +78,15 @@ const startServer = async () => {
     // Start listening
     app.listen(PORT, () => {
       console.log(`\n OBYX API is cooking on port ${PORT}`);
+
+      // Self-ping interval every 14 minutes (14 * 60 * 1000 ms) to keep Render server awake
+      const pingIntervalMs = 14 * 60 * 1000;
+      setInterval(() => {
+        const targetUrl = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || `http://localhost:${PORT}`;
+        fetch(`${targetUrl}/ping`)
+          .then((res) => console.log(`[KEEPALIVE] Self-pinged ${targetUrl}/ping -> Status: ${res.status}`))
+          .catch((err) => console.error(`[KEEPALIVE] Self-ping failed:`, err.message));
+      }, pingIntervalMs);
     });
   } catch (err) {
     console.error(' Failed to start server:', err);
