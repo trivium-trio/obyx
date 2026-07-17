@@ -171,7 +171,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
     const transaction = await Transaction.create({
       userId,
       type: 'ONRAMP',
-      status: 'PENDING',
+      status: 'INITIATED',
       fiatAmount: amount,
       fiatCurrency: 'KES',
       cryptoAmount,
@@ -184,6 +184,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
     // --- Trigger the Paystack STK Push ---
     // Paystack auto-generates a unique reference per charge attempt.
     try {
+      const { sendUSDC } = await import('../services/circle.service.js');
       const paystackData = await triggerMpesaSTK(
         req.user.email || 'onramp@obyx.co',
         amount,
@@ -193,7 +194,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
 
       // Store the Paystack reference on the transaction
       await transaction.update({
-        status: 'FIAT_PROCESSING',
+        status: 'PROMPT_SENT',
         paystackReference: paystackData.reference,
       });
 
@@ -293,9 +294,14 @@ router.get('/status/:id', verifySupabaseToken, async (req, res) => {
       });
     }
 
+    const publicTx = transaction.toJSON();
+    delete publicTx.failureReason;
+    delete publicTx.circleTxId;
+    delete publicTx.paystackReference;
+
     return res.status(200).json({
       success: true,
-      data: transaction,
+      data: publicTx,
     });
   } catch (err) {
     console.error(`[ONRAMP] Error fetching status for transaction ${req.params.id}:`, err);

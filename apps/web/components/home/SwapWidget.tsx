@@ -21,8 +21,13 @@ import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
 import { PhoneNumberModal } from "@/components/dashboard/PhoneNumberModal";
 
 export function SwapWidget() {
-  const [fiatCurrency, setFiatCurrency] = useState<Currency>(currencies[0]);
-  const [cryptoToken, setCryptoToken] = useState<Token>(tokens[0]);
+  const { refreshTransactions, transactions } = useTransactionHistory();
+
+  const availableCurrencies = useMemo(() => currencies.filter((c) => c.code === "KSH"), []);
+  const availableTokens = useMemo(() => tokens.filter((t) => t.symbol === "USDC"), []);
+
+  const [fiatCurrency, setFiatCurrency] = useState<Currency>(availableCurrencies[0]);
+  const [cryptoToken, setCryptoToken] = useState<Token>(availableTokens[0]);
   const [fiatAmount, setFiatAmount] = useState<string>("10000");
   const [isReversed, setIsReversed] = useState(false);
   const [showFiatDropdown, setShowFiatDropdown] = useState(false);
@@ -49,7 +54,6 @@ export function SwapWidget() {
     sendGaslessSwap,
   } = useWallet();
   const { setShowAuthFlow } = useDynamicContext();
-  const { refreshTransactions } = useTransactionHistory();
 
   const rate = conversionRates[cryptoToken.symbol]?.[fiatCurrency.code] ?? 1;
 
@@ -90,28 +94,8 @@ export function SwapWidget() {
         const transactionId = res.data?.transactionId;
         if (!transactionId) throw new Error("No transaction ID returned");
 
-        // Poll for status until completed or failed
-        let currentStatus = res.data?.status;
-        let attempts = 0;
-        
-        while (currentStatus !== 'COMPLETED' && currentStatus !== 'FAILED' && attempts < 20) {
-          await new Promise((resolve) => setTimeout(resolve, 3000)); // poll every 3s
-          const statusRes = await OnrampService.getOnrampStatus(transactionId);
-          currentStatus = statusRes.data?.status;
-          attempts++;
-        }
-
-        if (currentStatus === 'FAILED') {
-          throw new Error("M-Pesa payment failed or was cancelled.");
-        }
-        
-        if (currentStatus !== 'COMPLETED') {
-          throw new Error("Payment is taking longer than expected. Check your transaction history.");
-        }
-
-        // Wait a brief moment to ensure the transaction record includes the txHash from Circle
-        const finalStatus = await OnrampService.getOnrampStatus(transactionId);
-        setSwapResult({ txHash: finalStatus.data?.txHash || "pending", userOpHash: "" });
+        // Fire and Forget: Show optimistic success UI
+        setSwapResult({ txHash: "pending", userOpHash: "pending" });
       } else {
         // OFF-RAMP: crypto -> fiat
         if (activeWallet === "external") {
@@ -188,6 +172,17 @@ export function SwapWidget() {
     await executeSwap(phone);
   }, [setUserPhone, executeSwap]);
 
+  const hasPendingTransaction = useMemo(() => {
+    return transactions.some(
+      (tx) => {
+        return tx.status === "INITIATED" ||
+          tx.status === "PROMPT_SENT" ||
+          tx.status === "PAID" ||
+          tx.status === "PAYOUT_QUEUED";
+      }
+    );
+  }, [transactions]);
+
   // Determine button state
   const getButtonState = () => {
     if (!isConnected)
@@ -201,8 +196,15 @@ export function SwapWidget() {
       if (!activeWalletAddress)
         return { label: "Wallet Not Ready", disabled: true, showWallet: true };
     }
+    if (hasPendingTransaction)
+      return { label: "Previous Swap Processing…", disabled: true, showLoader: true };
     if (isSwapping)
       return { label: "Executing Swap…", disabled: true, showLoader: true };
+
+    const amt = parseFloat(fiatAmount.replace(/,/g, "")) || 0;
+    if (amt <= 0)
+      return { label: "Enter Amount", disabled: true, showShield: true };
+
     return {
       label: activeWallet === "embedded" ? "Swap (Gasless)" : "Swap",
       disabled: false,
@@ -253,45 +255,7 @@ export function SwapWidget() {
                 >
                   <span className="text-lg">{fiatCurrency.flag}</span>
                   <span>{fiatCurrency.code}</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-white/40" />
                 </button>
-
-                <AnimatePresence>
-                  {showFiatDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -5, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full mt-2 left-0 z-30 w-48 rounded-xl glass-strong p-2"
-                    >
-                      {currencies.map((c) => (
-                        <button
-                          key={c.code}
-                          onClick={() => {
-                            setFiatCurrency(c);
-                            setShowFiatDropdown(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                            c.code === fiatCurrency.code
-                              ? "bg-neon-orange/10 text-neon-orange"
-                              : "text-white/60 hover:bg-white/[0.06] hover:text-white"
-                          )}
-                        >
-                          <span className="text-lg">{c.flag}</span>
-                          <span className="font-medium">{c.code}</span>
-                          <span className="text-xs text-white/30 ml-auto">
-                            {c.name}
-                          </span>
-                          {c.code === fiatCurrency.code && (
-                            <Check className="h-3.5 w-3.5 text-neon-orange ml-1" />
-                          )}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
               {/* Amount Input */}
@@ -342,45 +306,7 @@ export function SwapWidget() {
                 >
                   <span className="text-lg">{cryptoToken.icon}</span>
                   <span>{cryptoToken.symbol}</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-white/40" />
                 </button>
-
-                <AnimatePresence>
-                  {showCryptoDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -5, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full mt-2 left-0 z-30 w-48 rounded-xl glass-strong p-2"
-                    >
-                      {tokens.map((t) => (
-                        <button
-                          key={t.symbol}
-                          onClick={() => {
-                            setCryptoToken(t);
-                            setShowCryptoDropdown(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                            t.symbol === cryptoToken.symbol
-                              ? "bg-neon-orange/10 text-neon-orange"
-                              : "text-white/60 hover:bg-white/[0.06] hover:text-white"
-                          )}
-                        >
-                          <span className="text-lg">{t.icon}</span>
-                          <span className="font-medium">{t.symbol}</span>
-                          <span className="text-xs text-white/30 ml-auto">
-                            {t.name}
-                          </span>
-                          {t.symbol === cryptoToken.symbol && (
-                            <Check className="h-3.5 w-3.5 text-neon-orange ml-1" />
-                          )}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
               {/* Computed Value */}
@@ -438,20 +364,24 @@ export function SwapWidget() {
                 className="mt-4 rounded-xl bg-success/10 border border-success/20 p-4"
               >
                 <p className="text-xs text-success font-medium mb-2">
-                  ✓ Swap executed successfully (gasless)
+                  {swapResult.txHash === 'pending'
+                    ? "✓ Prompt sent! Please check your phone to complete."
+                    : "✓ Swap executed successfully (gasless)"}
                 </p>
-                <a
-                  href={`https://sepolia.basescan.org/tx/${swapResult.txHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs font-mono text-success/70 hover:text-success transition-colors"
-                >
-                  <span>
-                    Tx: {swapResult.txHash.slice(0, 10)}...
-                    {swapResult.txHash.slice(-8)}
-                  </span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                {swapResult.txHash !== 'pending' && (
+                  <a
+                    href={`https://sepolia.basescan.org/tx/${swapResult.txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs font-mono text-success/70 hover:text-success transition-colors"
+                  >
+                    <span>
+                      Tx: {swapResult.txHash.slice(0, 10)}...
+                      {swapResult.txHash.slice(-8)}
+                    </span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

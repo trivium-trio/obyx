@@ -119,7 +119,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
     });
 
     console.log(`[OFFRAMP] Transaction created: ${transaction.id} | ${cryptoAmount} USDC -> ${fiatAmount} KES`);
-
+    //use  actual obyx  wallet address here instead of a dummy one
     // We return the treasury address so the frontend knows where to send the USDC
     // Note: To dynamically fetch it, you could use config.CIRCLE_TESTNET_WALLET_ID and listWallets
     // But typically you'd have the Treasury Address in env too, or hardcoded for the demo.
@@ -206,20 +206,18 @@ router.post('/confirm', verifySupabaseToken, async (req, res) => {
 
     await transaction.update({ status: 'CRYPTO_PROCESSING', txHash });
     console.log(`[OFFRAMP] USDC transfer initiated on-chain: ${txHash}`);
-
-    // In a production app, we would wait for a webhook from Circle or indexer to confirm the txHash.
-    // For this demo, we'll simulate the confirmation and proceed to payout.
+    //set circle webhook in place to trigger this endpoint when the USDC is received
     setTimeout(async () => {
       try {
         console.log(`[OFFRAMP] Confirmed USDC receipt for ${transaction.id}. Initiating payout...`);
         const user = await User.findByPk(userId);
-        
+
         // 1. Create Recipient
         const recipient = await createTransferRecipient('Obyx User', user.phoneNumber);
-        
+
         // 2. Initiate Transfer
         await initiateTransfer(transaction.fiatAmount, recipient.recipient_code, transaction.id);
-        
+
         // 3. Mark complete
         await transaction.update({ status: 'COMPLETED' });
         console.log(`[OFFRAMP] Payout completed for ${transaction.id}`);

@@ -55,6 +55,9 @@ app.use('/api/v1/paystack', paystackRoutes);
 app.use('/api/v1/webhooks', webhookRoutes);
 const PORT = config.PORT;
 
+import { startPayoutWorker } from './workers/payout.worker.js';
+import { startReconciliationCron } from './workers/reconciliation.cron.js';
+
 const startServer = async () => {
   try {
     // Test the database connection
@@ -66,6 +69,10 @@ const startServer = async () => {
     // use migrations (npx sequelize-cli db:migrate).
     await sequelize.sync({ alter: true });
     console.log('Database models synchronized.');
+
+    // Start background workers
+    startPayoutWorker();
+    startReconciliationCron();
 
     // Start listening
     app.listen(PORT, () => {

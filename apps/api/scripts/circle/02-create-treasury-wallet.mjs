@@ -30,7 +30,9 @@ try {
     walletSetId,
     blockchains: ['BASE-SEPOLIA'],
     count: 1,
-    accountType: 'EOA',//DCW NOT  AN EOA!!
+    // SCA is required for Gas Station sponsorship on EVM chains, so once configured this
+    // wallet will never need native ETH funded manually.
+    accountType: 'SCA',
   });
 
   const wallet = walletsRes.data?.wallets?.[0];
