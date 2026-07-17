@@ -115,11 +115,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setCircleAddress(smartAccount.address);
         
         try {
-          const res = await UserService.postUserLinkWallet({ walletAddress: smartAccount.address });
+          // Link the user's direct MetaMask EOA instead of the Circle Smart Account
+          const res = await UserService.postUserLinkWallet({ walletAddress: addr });
           if (res.phoneNumber) {
             setUserPhone(res.phoneNumber);
           }
-          console.log("[WALLET] Linked wallet to backend:", smartAccount.address);
+          console.log("[WALLET] Linked EOA wallet to backend:", addr);
         } catch (linkErr) {
           console.warn("[WALLET] Failed to link wallet (non-fatal):", linkErr);
         }
@@ -133,7 +134,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    initCircle();
+    initCircle();                           
   }, [primaryWallet]);
 
   // ── Send gasless USDC transfer ──
