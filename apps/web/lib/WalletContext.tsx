@@ -100,27 +100,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             await new Promise((r) => setTimeout(r, 600));
           }
         }
-        
+
         if (!walletClient.account) {
           walletClient.account = {
             address: addr as `0x${string}`,
             type: "json-rpc",
           };
         }
-        
+
         const smartAccount = await initCircleSmartAccount(walletClient as any, addr);
         const bundlerClient = createCircleBundlerClient(smartAccount);
 
         bundlerClientRef.current = bundlerClient;
         setCircleAddress(smartAccount.address);
-        
+
         try {
-          // Link the user's direct MetaMask EOA instead of the Circle Smart Account
           const res = await UserService.postUserLinkWallet({ walletAddress: addr });
-          if (res.phoneNumber) {
-            setUserPhone(res.phoneNumber);
-          }
-          console.log("[WALLET] Linked EOA wallet to backend:", addr);
+          setUserPhone(res.phoneNumber ?? null);
+          console.log("[WALLET] Linked wallet to backend (EOA):", addr);
         } catch (linkErr) {
           console.warn("[WALLET] Failed to link wallet (non-fatal):", linkErr);
         }
@@ -134,7 +131,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    initCircle();                           
+    initCircle();
   }, [primaryWallet]);
 
   // ── Send gasless USDC transfer ──

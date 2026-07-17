@@ -54,7 +54,7 @@ export function OrderBook() {
         {[...asks].reverse().map((entry, i) => (
           <div
             key={`ask-${i}`}
-            className="relative grid grid-cols-3 gap-2 px-5 py-1.5 text-xs font-mono hover:bg-white/[0.02] transition-colors"
+            className="relative grid grid-cols-3 gap-2 px-5 py-1.5 text-[11px] sm:text-xs font-mono hover:bg-white/[0.02] transition-colors"
           >
             {/* Background bar */}
             <div
@@ -96,7 +96,7 @@ export function OrderBook() {
         {bids.map((entry, i) => (
           <div
             key={`bid-${i}`}
-            className="relative grid grid-cols-3 gap-2 px-5 py-1.5 text-xs font-mono hover:bg-white/[0.02] transition-colors"
+            className="relative grid grid-cols-3 gap-2 px-5 py-1.5 text-[11px] sm:text-xs font-mono hover:bg-white/[0.02] transition-colors"
           >
             {/* Background bar */}
             <div

@@ -294,9 +294,14 @@ router.get('/status/:id', verifySupabaseToken, async (req, res) => {
       });
     }
 
+    const publicTx = transaction.toJSON();
+    delete publicTx.failureReason;
+    delete publicTx.circleTxId;
+    delete publicTx.paystackReference;
+
     return res.status(200).json({
       success: true,
-      data: transaction,
+      data: publicTx,
     });
   } catch (err) {
     console.error(`[ONRAMP] Error fetching status for transaction ${req.params.id}:`, err);
