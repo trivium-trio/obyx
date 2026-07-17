@@ -24,9 +24,23 @@ import {
 import { cn } from "@/lib/utils";
 import { conversionRates } from "@/lib/mock-data";
 import { useWallet } from "@/lib/WalletContext";
-import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { useDynamicContext, useTokenBalances } from "@dynamic-labs/sdk-react-core";
 import { OnrampService, OfframpService } from "@/lib/api/client";
 import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
+
+// Helper to get active wallet spendable USDC balance
+function useActiveUsdcBalance() {
+  const { activeWalletAddress } = useWallet();
+  const { tokenBalances } = useTokenBalances({ 
+    accountAddress: activeWalletAddress || undefined,
+    networkId: 84532,
+  });
+  return useMemo(() => {
+    if (!tokenBalances || !Array.isArray(tokenBalances)) return 0;
+    const usdcToken = tokenBalances.find(t => t.symbol?.toUpperCase() === 'USDC' || t.name?.toUpperCase().includes('USDC'));
+    return usdcToken?.balance ?? 0;
+  }, [tokenBalances]);
+}
 
 // ════════════════════════════════════════════════════════
 // EXACT SVG ICONS
@@ -68,6 +82,7 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
   const { circleAddress, sendGaslessSwap, isConnected, activeWallet } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
+  const usdcBalance = useActiveUsdcBalance();
 
   const [cryptoAmount, setCryptoAmount] = useState("");
   const [phoneOrAccount, setPhoneOrAccount] = useState("");
@@ -184,14 +199,22 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
                       <USDCIcon className="w-3.5 h-3.5" /> USDC <ChevronDown className="w-3 h-3" />
                     </div>
                   </div>
-                  <input
-                    type="number"
-                    value={cryptoAmount}
-                    onChange={e => setCryptoAmount(e.target.value)}
-                    placeholder="0"
-                    className="w-full bg-transparent text-lg sm:text-xl font-bold text-white outline-none min-w-0"
-                  />
-                  <div className="text-[10px] text-white/30 mt-1">Balance: 0.0000 USDC</div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={cryptoAmount}
+                      onChange={e => setCryptoAmount(e.target.value)}
+                      placeholder="0"
+                      className="w-full bg-transparent text-lg sm:text-xl font-bold text-white outline-none min-w-0"
+                    />
+                    <button 
+                      onClick={() => setCryptoAmount(usdcBalance > 0 ? usdcBalance.toString() : "0")} 
+                      className="text-[10px] font-bold text-neon-orange bg-neon-orange/10 px-2 py-1 rounded-md"
+                    >
+                      Max
+                    </button>
+                  </div>
+                  <div className="text-[10px] text-white/30 mt-1">Balance: {usdcBalance.toFixed(4)} USDC</div>
                 </div>
 
                 {/* Swap Icon */}
@@ -261,6 +284,7 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
   const { userPhone, setUserPhone, isConnected, activeWallet, activeWalletAddress, circleAddress } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
+  const usdcBalance = useActiveUsdcBalance();
 
   const [cashAmount, setCashAmount] = useState("");
   const [phone, setPhone] = useState(userPhone || "+254");
@@ -299,7 +323,8 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       const res = await OnrampService.postOnrampInit({
         fiatAmount: fiatAmt,
         phoneNumber: phone,
-      });
+        walletAddress: activeWalletAddress || undefined,
+      } as any);
 
       setResult({ msg: "Prompt sent! Check your phone." });
       refreshTransactions();
@@ -376,7 +401,7 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                   <div className="w-full bg-transparent text-lg sm:text-xl font-bold text-white py-[2px] truncate">
                     {cryptoAmount}
                   </div>
-                  <div className="text-[10px] text-white/30 mt-1">Balance: 0.0000 USDC</div>
+                  <div className="text-[10px] text-white/30 mt-1">Balance: {usdcBalance.toFixed(4)} USDC</div>
                 </div>
 
                 {/* Swap Icon */}
@@ -447,9 +472,10 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 }
 
 function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { sendGaslessSwap, isConnected, walletAddress, activeWallet, activeWalletAddress, circleAddress } = useWallet();
+  const { sendGaslessSwap, isConnected, activeWallet, activeWalletAddress, circleAddress } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
+  const usdcBalance = useActiveUsdcBalance();
 
   const [activeTab, setActiveTab] = useState<"send" | "receive">("send");
   const [recipient, setRecipient] = useState("");
@@ -605,13 +631,13 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                           className="w-full bg-transparent text-2xl font-bold text-white outline-none min-w-0"
                         />
                         <button 
-                          onClick={() => setCryptoAmount("0")} 
+                          onClick={() => setCryptoAmount(usdcBalance > 0 ? usdcBalance.toString() : "0")} 
                           className="text-[10px] font-bold text-neon-orange bg-neon-orange/10 px-2 py-1 rounded-md"
                         >
                           Max
                         </button>
                       </div>
-                      <div className="text-[10px] text-white/30 mt-2">Balance: 0.0000 USDC</div>
+                      <div className="text-[10px] text-white/30 mt-2">Balance: {usdcBalance.toFixed(4)} USDC</div>
                     </div>
 
                     {/* Swap Icon */}
@@ -669,10 +695,10 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 <div className="bg-white p-4 rounded-2xl mb-6 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
                   {/* QR Code */}
                   <div className="w-48 h-48 bg-white rounded-xl flex items-center justify-center overflow-hidden">
-                    {isConnected && walletAddress ? (
+                    {isConnected && activeWalletAddress ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=${walletAddress}&color=13121c`} 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=${activeWalletAddress}&color=13121c`} 
                         alt="QR Code" 
                         className="w-full h-full object-contain"
                       />
@@ -692,10 +718,10 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 
                 <div className="w-full bg-[#1A1924] border border-white/[0.05] rounded-xl p-1 flex items-center">
                   <div className="flex-1 px-3 py-2 text-sm text-white/70 font-mono truncate select-all">
-                    {isConnected ? (walletAddress || "0x0000...0000") : "Connect wallet to receive"}
+                    {isConnected ? (activeWalletAddress || "0x0000...0000") : "Connect wallet to receive"}
                   </div>
                   <button 
-                    onClick={() => walletAddress && navigator.clipboard.writeText(walletAddress)}
+                    onClick={() => activeWalletAddress && navigator.clipboard.writeText(activeWalletAddress)}
                     className="p-3 bg-[#252433] hover:bg-white/[0.08] rounded-lg transition-colors text-white"
                     title="Copy address"
                   >
@@ -813,6 +839,8 @@ export function SwapWidget() {
   const { isConnected, activeWallet } = useWallet();
   const [showBalance, setShowBalance] = useState(true);
   const [activeModal, setActiveModal] = useState<"cash"|"crypto"|"transfer"|null>(null);
+  const usdcBalance = useActiveUsdcBalance();
+  const rate = conversionRates["USDC"]?.["KSH"] || 129.50;
 
   return (
     <>
@@ -836,11 +864,11 @@ export function SwapWidget() {
             <div className="flex items-baseline gap-2">
               <span className="text-4xl font-bold text-white">KES</span>
               <span className="text-4xl font-bold text-white/90 truncate max-w-full">
-                {showBalance ? "0.00" : "••••"}
+                {showBalance ? (usdcBalance * rate).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "••••"}
               </span>
             </div>
             <span className="text-sm text-white/40 font-mono mt-1">
-              {showBalance ? "0.000000 USDC" : "•••••••• USDC"}
+              {showBalance ? `${usdcBalance.toFixed(6)} USDC` : "•••••••• USDC"}
             </span>
           </div>
         </div>
