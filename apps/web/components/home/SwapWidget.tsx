@@ -65,7 +65,7 @@ const WXMIcon = ({ className }: { className?: string }) => (
 // ════════════════════════════════════════════════════════
 
 function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { circleAddress, sendGaslessSwap, isConnected } = useWallet();
+  const { circleAddress, sendGaslessSwap, isConnected, activeWallet } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
 
@@ -94,6 +94,10 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
   const handleSwap = async () => {
     if (!isConnected) {
       setShowAuthFlow(true);
+      return;
+    }
+    if (activeWallet === "external") {
+      setError("Off-ramp from external wallets requires sending on-chain tx. Please switch to your embedded OBYX Wallet for gasless off-ramp.");
       return;
     }
     if (!circleAddress) return;
@@ -254,7 +258,7 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
 }
 
 function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { userPhone, setUserPhone, isConnected } = useWallet();
+  const { userPhone, setUserPhone, isConnected, activeWallet, activeWalletAddress, circleAddress } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
 
@@ -284,6 +288,8 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       setShowAuthFlow(true);
       return;
     }
+    if (activeWallet === "embedded" && !circleAddress) return;
+    if (activeWallet === "external" && !activeWalletAddress) return;
     setIsSwapping(true);
     setError(null);
     try {
@@ -441,7 +447,7 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 }
 
 function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { sendGaslessSwap, isConnected, walletAddress } = useWallet();
+  const { sendGaslessSwap, isConnected, walletAddress, activeWallet, activeWalletAddress, circleAddress } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
 
@@ -465,6 +471,11 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       setShowAuthFlow(true);
       return;
     }
+    if (activeWallet === "external") {
+      setError("Gasless peer-to-peer transfers are currently supported on embedded wallets only.");
+      return;
+    }
+    if (activeWallet === "embedded" && !circleAddress) return;
     if (!recipient) {
       setError("Please enter a valid recipient address");
       return;
@@ -799,6 +810,7 @@ function TokenNetworkDropdown() {
 // ════════════════════════════════════════════════════════
 
 export function SwapWidget() {
+  const { isConnected, activeWallet } = useWallet();
   const [showBalance, setShowBalance] = useState(true);
   const [activeModal, setActiveModal] = useState<"cash"|"crypto"|"transfer"|null>(null);
 
@@ -864,6 +876,15 @@ export function SwapWidget() {
             <span className="truncate">Wallet Transfer</span>
           </button>
         </div>
+
+        {/* ── Dynamic Fee Indicator ── */}
+        <p className="text-center text-[11px] text-white/20 mt-4">
+          {isConnected && activeWallet === "embedded"
+            ? "0% gas fee · Sponsored by Circle Paymaster · Base Sepolia"
+            : isConnected && activeWallet === "external"
+            ? "Using External Wallet · Base Sepolia"
+            : "0.5% flat fee · Powered by on-chain liquidity"}
+        </p>
       </div>
 
       <AnimatePresence>

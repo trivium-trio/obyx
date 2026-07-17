@@ -17,7 +17,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { useWallet } from "@/lib/WalletContext";
-import { WalletWidget } from "@/components/dashboard/WalletWidget";
 
 const sidebarLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -249,9 +248,6 @@ export default function DashboardLayout({
                   {user.email}
                 </span>
               </div>
-
-              {/* Wallet Widget */}
-              <WalletWidget />
             </div>
           </div>
         </header>

@@ -97,29 +97,22 @@ export function WalletWidget() {
         className="flex items-center gap-1.5"
       >
         {/* Main pill showing active wallet */}
-        <div className="flex items-center gap-2.5 rounded-xl bg-surface-800 border border-white/[0.08] px-3 py-2">
-          {/* Wallet icon */}
-          <div
-            className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-lg",
-              activeWallet === "embedded"
-                ? "bg-neon-orange/15 border border-neon-orange/25"
-                : "bg-info/15 border border-info/25"
-            )}
-          >
+        <div className="flex items-center gap-3 rounded-full bg-[#13121C] border border-white/[0.12] pl-2 pr-2.5 py-1.5 shadow-lg">
+          {/* Wallet icon badge */}
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#6B46C1] shrink-0">
             {activeWallet === "embedded" ? (
-              <Shield className="h-3.5 w-3.5 text-neon-orange" />
+              <Wallet className="h-4 w-4 fill-current" />
             ) : (
-              <ExternalLink className="h-3.5 w-3.5 text-info" />
+              <ExternalLink className="h-4 w-4 text-[#6B46C1]" />
             )}
           </div>
 
           {/* Name + Address */}
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-white/90 truncate leading-tight">
+          <div className="flex flex-col min-w-0 pr-1">
+            <span className="text-sm font-bold text-white truncate leading-tight">
               {displayName}
             </span>
-            <span className="text-[10px] font-mono text-white/40 truncate leading-tight">
+            <span className="text-xs font-mono text-[#7F56D9] truncate leading-tight mt-0.5">
               {displayAddress
                 ? formatAddress(displayAddress)
                 : isInitializingCircle
@@ -137,13 +130,13 @@ export function WalletWidget() {
                 e.stopPropagation();
                 copyToClipboard(displayAddress);
               }}
-              className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+              className="p-2 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-[#7F56D9] transition-colors shrink-0"
               title="Copy address"
             >
               {copied === displayAddress ? (
-                <Check className="h-3 w-3 text-success" />
+                <Check className="h-3.5 w-3.5 text-success" />
               ) : (
-                <Copy className="h-3 w-3" />
+                <Copy className="h-3.5 w-3.5" />
               )}
             </button>
           )}
@@ -154,7 +147,7 @@ export function WalletWidget() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setShowSwitchModal(!showSwitchModal)}
-          className="flex h-[42px] w-[42px] items-center justify-center rounded-xl bg-surface-800 border border-white/[0.08] text-white/40 hover:text-neon-orange hover:border-neon-orange/20 hover:bg-neon-orange/5 transition-all duration-200"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-[#1A1924] border border-white/[0.06] text-white/80 hover:text-white hover:bg-white/[0.08] transition-all duration-200 shadow-lg shrink-0"
           title="Switch wallet"
         >
           <ArrowLeftRight className="h-4 w-4" />

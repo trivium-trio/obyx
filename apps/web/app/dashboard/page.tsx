@@ -4,59 +4,33 @@ import { motion } from "framer-motion";
 import { SwapWidget } from "@/components/home/SwapWidget";
 import { TransactionHistoryTable } from "@/components/dashboard/TransactionHistoryTable";
 import { useAuth } from "@/lib/AuthContext";
-import { useWallet } from "@/lib/WalletContext";
-import { Shield, Wallet, ExternalLink } from "lucide-react";
+import { WalletWidget } from "@/components/dashboard/WalletWidget";
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { activeWallet, activeWalletAddress, isConnected } = useWallet();
 
   return (
     <div className="space-y-10">
-      {/* Welcome header */}
+      {/* Welcome header + Wallet Widget */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Welcome back
-        </h1>
-        <p className="text-sm text-white/35 font-mono">
-          {user?.email ?? "User"} · Ready to swap
-        </p>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1.5">
+            Welcome back 👋
+          </h1>
+          <p className="text-sm text-white/35 font-mono">
+            {user?.email ?? "User"} · Ready to swap
+          </p>
+        </div>
 
-        {/* Wallet Info Panel */}
-        {isConnected && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mt-4 flex flex-wrap gap-3"
-          >
-            {/* Active Wallet */}
-            <div className="flex items-center gap-2 rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-2.5">
-              <Wallet className="h-3.5 w-3.5 text-neon-orange" />
-              <span className="text-xs text-white/40 mr-1">
-                {activeWallet === 'embedded' ? 'OBYX Wallet' : 'External EOA'}
-              </span>
-              {activeWalletAddress ? (
-                <a
-                  href={`https://sepolia.basescan.org/address/${activeWalletAddress}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-mono text-white/70 hover:text-neon-orange transition-colors flex items-center gap-1"
-                >
-                  {`${activeWalletAddress.slice(0, 6)}...${activeWalletAddress.slice(-4)}`}
-                  <ExternalLink className="h-2.5 w-2.5" />
-                </a>
-              ) : (
-                <span className="text-xs font-mono text-white/40">—</span>
-              )}
-            </div>
-
-          </motion.div>
-        )}
+        {/* Wallet Widget in Body */}
+        <div className="flex items-center justify-end">
+          <WalletWidget />
+        </div>
       </motion.div>
 
       {/* Swap Widget */}
