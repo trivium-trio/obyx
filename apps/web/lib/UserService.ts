@@ -13,13 +13,13 @@ export interface UserTransaction {
   userId: string;
   type: "ONRAMP" | "OFFRAMP";
   status:
-    | "PENDING"
-    | "FIAT_PROCESSING"
-    | "FIAT_RECEIVED"
-    | "CRYPTO_PROCESSING"
-    | "COMPLETED"
+    | "INITIATED"
+    | "PROMPT_SENT"
+    | "PAID"
+    | "PAYOUT_QUEUED"
+    | "PAYOUT_SENT"
     | "FAILED"
-    | "REFUNDED";
+    | "PAYOUT_FAILED";
   fiatAmount: string;
   fiatCurrency: string;
   cryptoAmount: string;

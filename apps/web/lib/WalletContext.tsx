@@ -115,11 +115,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setCircleAddress(smartAccount.address);
         
         try {
-          const res = await UserService.postUserLinkWallet({ walletAddress: smartAccount.address });
-          if (res.phoneNumber) {
-            setUserPhone(res.phoneNumber);
-          }
-          console.log("[WALLET] Linked wallet to backend:", smartAccount.address);
+          const res = await UserService.postUserLinkWallet({ walletAddress: addr });
+          setUserPhone(res.phoneNumber ?? null);
+          console.log("[WALLET] Linked wallet to backend (EOA):", addr);
         } catch (linkErr) {
           console.warn("[WALLET] Failed to link wallet (non-fatal):", linkErr);
         }

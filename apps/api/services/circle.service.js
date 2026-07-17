@@ -13,11 +13,11 @@ const USDC_TOKEN_ID = config.CIRCLE_USDC_TOKEN_ID;
 /**
  * Send USDC from Treasury to a user's wallet address.
  */
-export const sendUSDC = async (walletAddress, amount) => {
+export const sendUSDC = async (walletAddress, amount, idempotencyKey = crypto.randomUUID()) => {
   console.log(`[CIRCLE] Sending ${amount} USDC -> ${walletAddress} from Treasury`);
   
   const response = await circleClient.createTransaction({
-    idempotencyKey: crypto.randomUUID(),
+    idempotencyKey: idempotencyKey,
     walletId: config.CIRCLE_TESTNET_WALLET_ID,
     tokenId: USDC_TOKEN_ID,
     destinationAddress: walletAddress,

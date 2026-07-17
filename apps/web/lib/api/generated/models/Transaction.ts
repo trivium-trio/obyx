@@ -23,13 +23,13 @@ export namespace Transaction {
         OFFRAMP = 'OFFRAMP',
     }
     export enum status {
-        PENDING = 'PENDING',
-        FIAT_PROCESSING = 'FIAT_PROCESSING',
-        FIAT_RECEIVED = 'FIAT_RECEIVED',
-        CRYPTO_PROCESSING = 'CRYPTO_PROCESSING',
-        COMPLETED = 'COMPLETED',
+        INITIATED = 'INITIATED',
+        PROMPT_SENT = 'PROMPT_SENT',
+        PAID = 'PAID',
+        PAYOUT_QUEUED = 'PAYOUT_QUEUED',
+        PAYOUT_SENT = 'PAYOUT_SENT',
         FAILED = 'FAILED',
-        REFUNDED = 'REFUNDED',
+        PAYOUT_FAILED = 'PAYOUT_FAILED',
     }
 }
 

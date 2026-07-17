@@ -14,13 +14,13 @@ import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
 
 // ── Status config ──
 const statusConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  COMPLETED: { label: "Completed", color: "text-success", bg: "bg-success/10", dot: "bg-success" },
-  PENDING: { label: "Pending", color: "text-neon-amber", bg: "bg-neon-amber/10", dot: "bg-neon-amber animate-pulse" },
-  FIAT_PROCESSING: { label: "Processing", color: "text-neon-amber", bg: "bg-neon-amber/10", dot: "bg-neon-amber animate-pulse" },
-  FIAT_RECEIVED: { label: "Fiat Received", color: "text-info", bg: "bg-info/10", dot: "bg-info" },
-  CRYPTO_PROCESSING: { label: "Sending Crypto", color: "text-violet-400", bg: "bg-violet-400/10", dot: "bg-violet-400 animate-pulse" },
+  INITIATED: { label: "Initiated", color: "text-white/50", bg: "bg-white/[0.06]", dot: "bg-white/40" },
+  PROMPT_SENT: { label: "Awaiting Payment", color: "text-neon-amber", bg: "bg-neon-amber/10", dot: "bg-neon-amber animate-pulse" },
+  PAID: { label: "Paid", color: "text-info", bg: "bg-info/10", dot: "bg-info" },
+  PAYOUT_QUEUED: { label: "Sending Crypto", color: "text-violet-400", bg: "bg-violet-400/10", dot: "bg-violet-400 animate-pulse" },
+  PAYOUT_SENT: { label: "Completed", color: "text-success", bg: "bg-success/10", dot: "bg-success" },
   FAILED: { label: "Failed", color: "text-danger", bg: "bg-danger/10", dot: "bg-danger" },
-  REFUNDED: { label: "Refunded", color: "text-white/40", bg: "bg-white/[0.06]", dot: "bg-white/40" },
+  PAYOUT_FAILED: { label: "Payout Failed", color: "text-danger", bg: "bg-danger/10", dot: "bg-danger animate-pulse" },
 };
 
 function formatDate(iso: string): string {
@@ -147,9 +147,57 @@ export function TransactionHistoryTable() {
         <div className="max-h-[380px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
           <AnimatePresence initial={false}>
             {transactions.map((tx, index) => {
-              const status = statusConfig[tx.status as string ?? "PENDING"] ?? statusConfig.PENDING;
+              const status = statusConfig[tx.status as string ?? "INITIATED"] ?? statusConfig.INITIATED;
               const isOnramp = tx.type === "ONRAMP";
               const pair = `${tx.fiatCurrency ?? "KES"}/${tx.cryptoCurrency ?? "USDC"}`;
+
+              const dateStr = formatDate(tx.createdAt ?? new Date().toISOString());
+              const timeStr = formatTime(tx.createdAt ?? new Date().toISOString());
+
+              const typeBadge = (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold",
+                    isOnramp
+                      ? "bg-success/10 text-success"
+                      : "bg-neon-orange/10 text-neon-orange",
+                  )}
+                >
+                  {isOnramp ? (
+                    <ArrowDownLeft className="h-2.5 w-2.5" />
+                  ) : (
+                    <ArrowUpRight className="h-2.5 w-2.5" />
+                  )}
+                  {isOnramp ? "Buy" : "Sell"}
+                </span>
+              );
+
+              const statusBadge = (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]",
+                    status.bg,
+                    status.color,
+                  )}
+                >
+                  <span className={cn("h-1 w-1 rounded-full", status.dot)} />
+                  {status.label}
+                </span>
+              );
+
+              const txHashLink = tx.txHash ? (
+                <a
+                  href={`https://sepolia.basescan.org/tx/${tx.txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[10px] text-info/60 hover:text-info transition-colors"
+                >
+                  {tx.txHash.slice(0, 6)}…{tx.txHash.slice(-4)}
+                  <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </a>
+              ) : (
+                <span className="text-[10px] text-white/15">—</span>
+              );
 
               return (
                 <motion.div
@@ -159,81 +207,68 @@ export function TransactionHistoryTable() {
                   exit={{ opacity: 0, y: 10 }}
                   transition={{ duration: 0.2, delay: index * 0.03 }}
                   className={cn(
-                    "grid grid-cols-1 sm:grid-cols-[1fr_0.8fr_0.6fr_1fr_1fr_1fr_0.8fr] gap-1 sm:gap-2 px-5 py-3 text-xs font-mono border-b border-white/[0.02]",
+                    "px-5 py-3 text-xs font-mono border-b border-white/[0.02]",
                     "hover:bg-white/[0.02] transition-colors group",
                   )}
                 >
-                  {/* Date & Time */}
-                  <div className="flex sm:flex-col gap-1 sm:gap-0">
-                    <span className="text-white/40">{formatDate(tx.createdAt ?? new Date().toISOString())}</span>
-                    <span className="text-white/20 text-[10px]">{formatTime(tx.createdAt ?? new Date().toISOString())}</span>
+                  {/* ── Mobile card layout ── */}
+                  <div className="flex sm:hidden flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-white/40">{dateStr}</span>
+                        <span className="text-white/20 text-[10px]">{timeStr}</span>
+                      </div>
+                      {typeBadge}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-white/50 font-medium">{pair}</span>
+                      {statusBadge}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col text-white/40">
+                        <span className="text-white/20 text-[10px]">Paid</span>
+                        <span>{formatAmount(tx.fiatAmount)} {tx.fiatCurrency}</span>
+                      </div>
+                      <div className="flex flex-col text-right text-white/50">
+                        <span className="text-white/20 text-[10px]">Received</span>
+                        <span>{formatAmount(tx.cryptoAmount, 6)} {tx.cryptoCurrency}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-white/20 text-[10px]">Tx Hash</span>
+                      {txHashLink}
+                    </div>
                   </div>
 
-                  {/* Type Badge */}
-                  <div className="flex items-center">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold",
-                        isOnramp
-                          ? "bg-success/10 text-success"
-                          : "bg-neon-orange/10 text-neon-orange",
-                      )}
-                    >
-                      {isOnramp ? (
-                        <ArrowDownLeft className="h-2.5 w-2.5" />
-                      ) : (
-                        <ArrowUpRight className="h-2.5 w-2.5" />
-                      )}
-                      {isOnramp ? "Buy" : "Sell"}
+                  {/* ── Desktop grid layout ── */}
+                  <div className="hidden sm:grid grid-cols-[1fr_0.8fr_0.6fr_1fr_1fr_1fr_0.8fr] gap-2 items-center">
+                    {/* Date & Time */}
+                    <div className="flex flex-col">
+                      <span className="text-white/40">{dateStr}</span>
+                      <span className="text-white/20 text-[10px]">{timeStr}</span>
+                    </div>
+
+                    {/* Type Badge */}
+                    <div className="flex items-center">{typeBadge}</div>
+
+                    {/* Pair */}
+                    <span className="text-white/50 font-medium">{pair}</span>
+
+                    {/* Fiat Amount */}
+                    <span className="text-right text-white/40">
+                      {formatAmount(tx.fiatAmount)} {tx.fiatCurrency}
                     </span>
-                  </div>
 
-                  {/* Pair */}
-                  <span className="text-white/50 font-medium hidden sm:block">
-                    {pair}
-                  </span>
-
-                  {/* Fiat Amount */}
-                  <span className="text-right text-white/40">
-                    <span className="sm:hidden text-white/20 mr-1">Paid:</span>
-                    {formatAmount(tx.fiatAmount)} {tx.fiatCurrency}
-                  </span>
-
-                  {/* Crypto Amount */}
-                  <span className="text-right text-white/50">
-                    <span className="sm:hidden text-white/20 mr-1">Received:</span>
-                    {formatAmount(tx.cryptoAmount, 6)} {tx.cryptoCurrency}
-                  </span>
-
-                  {/* Tx Hash */}
-                  <div className="text-right">
-                    {tx.txHash ? (
-                      <a
-                        href={`https://sepolia.basescan.org/tx/${tx.txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[10px] text-info/60 hover:text-info transition-colors"
-                      >
-                        {tx.txHash.slice(0, 6)}…{tx.txHash.slice(-4)}
-                        <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </a>
-                    ) : (
-                      <span className="text-[10px] text-white/15">—</span>
-                    )}
-                  </div>
-
-                  {/* Status */}
-                  <div className="text-right">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]",
-                        status.bg,
-                        status.color,
-                      )}
-                    >
-                      <span className={cn("h-1 w-1 rounded-full", status.dot)} />
-                      {status.label}
+                    {/* Crypto Amount */}
+                    <span className="text-right text-white/50">
+                      {formatAmount(tx.cryptoAmount, 6)} {tx.cryptoCurrency}
                     </span>
+
+                    {/* Tx Hash */}
+                    <div className="text-right">{txHashLink}</div>
+
+                    {/* Status */}
+                    <div className="text-right">{statusBadge}</div>
                   </div>
                 </motion.div>
               );

@@ -67,20 +67,10 @@ export function TransactionHistoryProvider({ children }: { children: ReactNode }
   useEffect(() => {
     const hasPending = transactions.some(
       (tx) => {
-        const isPendingStatus = tx.status === "PENDING" ||
-          tx.status === "FIAT_PROCESSING" ||
-          tx.status === "FIAT_RECEIVED" ||
-          tx.status === "CRYPTO_PROCESSING";
-          
-        if (!isPendingStatus) return false;
-        
-        // Ignore stale pending transactions (older than 5 minutes)
-        if (tx.updatedAt) {
-          const txTime = new Date(tx.updatedAt).getTime();
-          const now = Date.now();
-          if (now - txTime > 5 * 60 * 1000) return false;
-        }
-        return true;
+        return tx.status === "INITIATED" ||
+          tx.status === "PROMPT_SENT" ||
+          tx.status === "PAID" ||
+          tx.status === "PAYOUT_QUEUED";
       }
     );
 
