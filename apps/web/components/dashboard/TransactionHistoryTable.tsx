@@ -8,6 +8,8 @@ import {
   History,
   Loader2,
   RefreshCw,
+  Search,
+  Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
@@ -59,28 +61,46 @@ export function TransactionHistoryTable() {
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-surface-900/80 overflow-hidden">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between border-b border-white/[0.04] px-5 py-3">
-        <div className="flex items-center gap-2">
-          <History className="h-3.5 w-3.5 text-neon-orange" />
-          <span className="text-xs font-mono text-white/40 uppercase tracking-wider">
-            Your Transactions
-          </span>
-          {transactions.length > 0 && (
-            <span className="text-[10px] font-mono rounded-full bg-white/[0.06] px-2 py-0.5 text-white/30">
-              {transactions.length}
-            </span>
-          )}
+      <div className="flex items-center justify-between border-b border-white/[0.04] px-5 py-4 flex-wrap gap-4">
+        <div className="flex items-center gap-3 flex-1 min-w-[200px]">
+          <div className="flex-1 max-w-[320px] relative">
+            <Search className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input 
+              type="text" 
+              placeholder="Search by tx hash, receipt, token..." 
+              className="w-full bg-[#13121C] border border-white/[0.05] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-white/[0.1] transition-colors"
+            />
+          </div>
+          <button className="flex items-center gap-2 bg-[#13121C] border border-white/[0.05] hover:bg-white/[0.05] transition-colors rounded-xl px-4 py-2.5 text-xs text-white/50">
+            <Filter className="w-4 h-4" /> Filter
+          </button>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => refreshTransactions()}
-          disabled={isLoading}
-          className="p-1.5 rounded-lg text-white/25 hover:text-white/50 hover:bg-white/[0.04] transition-colors disabled:opacity-50"
-          aria-label="Refresh transactions"
-        >
-          <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
-        </motion.button>
+
+        <div className="flex items-center gap-4 text-xs text-white/40">
+          <button
+            onClick={() => refreshTransactions()}
+            disabled={isLoading}
+            className="p-2 rounded-xl bg-[#615CE8] hover:bg-[#524DCC] text-white transition-colors disabled:opacity-50"
+            aria-label="Refresh transactions"
+          >
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+          </button>
+          
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <div className="relative">
+              <select className="appearance-none bg-[#13121C] border border-white/[0.05] rounded-lg pl-3 pr-8 py-1.5 outline-none text-white/70">
+                <option>20</option>
+                <option>50</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-white/40">
+                <svg className="fill-current h-3 w-3" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+              </div>
+            </div>
+          </div>
+          
+          <span>{transactions.length > 0 ? `1 | ${transactions.length} txs` : "0 | 0 txs"}</span>
+        </div>
       </div>
 
       {/* ── Column Headers ── */}

@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { SwapWidget } from "@/components/home/SwapWidget";
-import { StatusCards } from "@/components/dashboard/StatusCards";
 import { TransactionHistoryTable } from "@/components/dashboard/TransactionHistoryTable";
 import { useAuth } from "@/lib/AuthContext";
 import { useWallet } from "@/lib/WalletContext";
@@ -79,17 +78,6 @@ export default function DashboardPage() {
         <TransactionHistoryTable />
       </motion.div>
 
-      {/* Status Cards */}
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.2 }}
-      >
-        <h2 className="text-sm font-medium text-white/40 uppercase tracking-widest mb-5">
-          Market Status
-        </h2>
-        <StatusCards />
-      </motion.div>
     </div>
   );
 }
