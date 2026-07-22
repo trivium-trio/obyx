@@ -70,15 +70,17 @@ export function startPayoutWorker() {
       tx = rows[0];
       console.log(`[WORKER] Picked up payout for tx ${tx.id}`);
 
-      // Get user wallet
+      // Get user wallet — tx.walletAddress carries the active wallet chosen at on-ramp time
+      // (Circle SCA or EOA). Fall back to user.walletAddress for legacy transactions.
       const user = await User.findByPk(tx.userId);
-      if (!user || !user.walletAddress) {
-        throw new Error("User has no wallet address linked.");
+      const targetAddress = tx.walletAddress || (user && user.walletAddress);
+      if (!targetAddress) {
+        throw new Error(`No destination wallet address for tx ${tx.id}`);
       }
 
       // Execute Circle Transfer using tx.id as idempotencyKey
       circleResult = await sendUSDC(
-        user.walletAddress,
+        targetAddress,
         parseFloat(tx.cryptoAmount),
         tx.id // idempotency key
       );
