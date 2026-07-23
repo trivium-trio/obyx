@@ -24,22 +24,42 @@ import {
 import { cn } from "@/lib/utils";
 import { conversionRates } from "@/lib/mock-data";
 import { useWallet } from "@/lib/WalletContext";
-import { useDynamicContext, useTokenBalances } from "@dynamic-labs/sdk-react-core";
+import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { useReadContract } from "wagmi";
 import { OnrampService, OfframpService } from "@/lib/api/client";
 import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
 
-// Helper to get active wallet spendable USDC balance
-function useActiveUsdcBalance() {
+// USDC contract on Base Sepolia (Circle official)
+const BASE_SEPOLIA_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
+
+// Minimal ERC-20 ABI — only the balanceOf function we need
+const ERC20_BALANCE_ABI = [
+  {
+    type: "function" as const,
+    name: "balanceOf",
+    stateMutability: "view" as const,
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
+
+// Helper to get active wallet spendable USDC balance via direct RPC.
+// Bypasses Dynamic's internal token indexing API which returns 422 on Base Sepolia.
+function useActiveUsdcBalance(): { balance: number; isLoading: boolean } {
   const { activeWalletAddress } = useWallet();
-  const { tokenBalances } = useTokenBalances({ 
-    accountAddress: activeWalletAddress || undefined,
-    networkId: 84532,
+  const { data, isLoading } = useReadContract({
+    address: BASE_SEPOLIA_USDC,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "balanceOf",
+    args: activeWalletAddress ? [activeWalletAddress as `0x${string}`] : undefined,
+    chainId: 84532,
+    query: {
+      enabled: !!activeWalletAddress,
+    },
   });
-  return useMemo(() => {
-    if (!tokenBalances || !Array.isArray(tokenBalances)) return 0;
-    const usdcToken = tokenBalances.find(t => t.symbol?.toUpperCase() === 'USDC' || t.name?.toUpperCase().includes('USDC'));
-    return usdcToken?.balance ?? 0;
-  }, [tokenBalances]);
+  // USDC has 6 decimals
+  const balance = data ? Number(data) / 1e6 : 0;
+  return { balance, isLoading };
 }
 
 // ════════════════════════════════════════════════════════
@@ -82,7 +102,7 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
   const { circleAddress, sendGaslessSwap, isConnected, activeWallet } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
-  const usdcBalance = useActiveUsdcBalance();
+  const { balance: usdcBalance } = useActiveUsdcBalance();
 
   const [cryptoAmount, setCryptoAmount] = useState("");
   const [phoneOrAccount, setPhoneOrAccount] = useState("");
@@ -284,7 +304,7 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
   const { userPhone, setUserPhone, isConnected, activeWallet, activeWalletAddress, circleAddress } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
-  const usdcBalance = useActiveUsdcBalance();
+  const { balance: usdcBalance } = useActiveUsdcBalance();
 
   const [cashAmount, setCashAmount] = useState("");
   const [phone, setPhone] = useState(userPhone || "+254");
@@ -475,7 +495,7 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const { sendGaslessSwap, isConnected, activeWallet, activeWalletAddress, circleAddress } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
-  const usdcBalance = useActiveUsdcBalance();
+  const { balance: usdcBalance } = useActiveUsdcBalance();
 
   const [activeTab, setActiveTab] = useState<"send" | "receive">("send");
   const [recipient, setRecipient] = useState("");
@@ -839,7 +859,7 @@ export function SwapWidget() {
   const { isConnected, activeWallet } = useWallet();
   const [showBalance, setShowBalance] = useState(true);
   const [activeModal, setActiveModal] = useState<"cash"|"crypto"|"transfer"|null>(null);
-  const usdcBalance = useActiveUsdcBalance();
+  const { balance: usdcBalance, isLoading: isBalanceLoading } = useActiveUsdcBalance();
   const rate = conversionRates["USDC"]?.["KSH"] || 129.50;
 
   return (
@@ -864,11 +884,11 @@ export function SwapWidget() {
             <div className="flex items-baseline gap-2">
               <span className="text-4xl font-bold text-white">KES</span>
               <span className="text-4xl font-bold text-white/90 truncate max-w-full">
-                {showBalance ? (usdcBalance * rate).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "••••"}
+                {isBalanceLoading ? "Loading…" : showBalance ? (usdcBalance * rate).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "••••"}
               </span>
             </div>
             <span className="text-sm text-white/40 font-mono mt-1">
-              {showBalance ? `${usdcBalance.toFixed(6)} USDC` : "•••••••• USDC"}
+              {isBalanceLoading ? "Loading…" : showBalance ? `${usdcBalance.toFixed(6)} USDC` : "•••••••• USDC"}
             </span>
           </div>
         </div>
