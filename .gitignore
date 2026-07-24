@@ -23,3 +23,5 @@ build/
 
 # Misc
 repomix-output.xml
+.vercel
+.env*
