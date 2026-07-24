@@ -17,6 +17,13 @@ on:
       - 'package.json'
       - 'package-lock.json'
 
+  pull_request:
+    branches: [main, production, develop]
+    paths:
+      - 'apps/web/**'
+      - 'package.json'
+      - 'package-lock.json'
+
   # Allow manual trigger for initial setup / hotfixes
   workflow_dispatch:
 
