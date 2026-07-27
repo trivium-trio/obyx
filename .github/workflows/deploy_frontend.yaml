@@ -55,23 +55,15 @@ jobs:
         if: github.ref != 'refs/heads/main' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Build project (Preview)
-        if: github.ref != 'refs/heads/main' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
-
       - name: Deploy to Preview
         if: github.ref != 'refs/heads/main' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        run: vercel deploy --prebuilt --yes --no-wait --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --yes --no-wait --token=${{ secrets.VERCEL_TOKEN }}
 
       # --- STEPS FOR MAIN BRANCH (Live Production) ---
       - name: Pull Vercel environment (Production)
         if: github.ref == 'refs/heads/main'
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Build project (Production)
-        if: github.ref == 'refs/heads/main'
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-
       - name: Deploy to Production
         if: github.ref == 'refs/heads/main'
-        run: vercel deploy --prebuilt --prod --yes --no-wait --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prod --yes --no-wait --token=${{ secrets.VERCEL_TOKEN }}
