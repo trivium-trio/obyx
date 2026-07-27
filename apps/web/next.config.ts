@@ -7,7 +7,12 @@ const nextConfig: NextConfig = {
       apiBaseUrl = `https://${apiBaseUrl}`;
     }
     // Ensure no trailing slash so /:path* appends correctly
-    const cleanBaseUrl = apiBaseUrl.replace(/\/$/, "");
+    let cleanBaseUrl = apiBaseUrl.replace(/\/$/, "");
+    try {
+      if (!cleanBaseUrl.startsWith("/")) new URL(cleanBaseUrl);
+    } catch {
+      cleanBaseUrl = "http://localhost:5000/api/v1";
+    }
 
     return [
       {

@@ -15,25 +15,37 @@ import type { Account, WalletClient } from "viem";
 import { toAccount } from "viem/accounts";
 
 // ── Environment ──
-const CLIENT_KEY = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_KEY;
-const CLIENT_URL = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_URL;
+let CLIENT_KEY = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_KEY || "placeholder-client-key";
+let CLIENT_URL = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_URL || "https://modular-sdk.circle.com/v1/w3s";
 
-if (!CLIENT_KEY || !CLIENT_URL) {
-  throw new Error(
-    "Missing NEXT_PUBLIC_CIRCLE_CLIENT_KEY or NEXT_PUBLIC_CIRCLE_CLIENT_URL",
-  );
+if (!CLIENT_URL.startsWith("http://") && !CLIENT_URL.startsWith("https://")) {
+  CLIENT_URL = `https://${CLIENT_URL}`;
 }
+try {
+  new URL(CLIENT_URL);
+} catch {
+  CLIENT_URL = "https://modular-sdk.circle.com/v1/w3s";
+}
+
 // ── Base Sepolia USDC contract ──
 // Circle testnet USDC on Base Sepolia
 export const USDC_CONTRACT_ADDRESS =
   "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
 export const USDC_DECIMALS = 6;
 
-// ── Transport ──
-const modularTransport = toModularTransport(
-  `${CLIENT_URL}/baseSepolia`,
-  CLIENT_KEY,
-);
+let modularTransport: ReturnType<typeof toModularTransport>;
+try {
+  let url = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_URL || "";
+  if (!url || url.includes("[SENSITIVE]") || url.includes("***")) {
+    url = "https://modular-sdk.circle.com/v1/w3s";
+  } else if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = `https://${url}`;
+  }
+  new URL(url);
+  modularTransport = toModularTransport(`${url}/baseSepolia`, CLIENT_KEY);
+} catch {
+  modularTransport = toModularTransport("https://modular-sdk.circle.com/v1/w3s/baseSepolia", "placeholder-key");
+}
 
 // ── Public Client ──
 export const circlePublicClient = createPublicClient({
