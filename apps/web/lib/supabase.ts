@@ -1,15 +1,18 @@
 import { createClient } from "@supabase/supabase-js";
 
-let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-if (!supabaseUrl.startsWith("http://") && !supabaseUrl.startsWith("https://")) {
-  supabaseUrl = `https://${supabaseUrl}`;
-}
+let supabase;
 try {
-  new URL(supabaseUrl);
+  let url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  if (!url || url.includes("[SENSITIVE]") || url.includes("***") || url === "undefined" || url === "null") {
+    url = "https://placeholder.supabase.co";
+  } else if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = `https://${url}`;
+  }
+  new URL(url);
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key";
+  supabase = createClient(url, key);
 } catch {
-  supabaseUrl = "https://placeholder.supabase.co";
+  supabase = createClient("https://placeholder.supabase.co", "placeholder-anon-key");
 }
 
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key";
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export { supabase };

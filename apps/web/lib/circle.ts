@@ -34,10 +34,19 @@ export const USDC_CONTRACT_ADDRESS =
 export const USDC_DECIMALS = 6;
 
 // ── Transport ──
-const modularTransport = toModularTransport(
-  `${CLIENT_URL}/baseSepolia`,
-  CLIENT_KEY,
-);
+let modularTransport;
+try {
+  let url = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_URL || "";
+  if (!url || url.includes("[SENSITIVE]") || url.includes("***")) {
+    url = "https://modular-sdk.circle.com/v1/w3s";
+  } else if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = `https://${url}`;
+  }
+  new URL(url);
+  modularTransport = toModularTransport(`${url}/baseSepolia`, CLIENT_KEY);
+} catch {
+  modularTransport = toModularTransport("https://modular-sdk.circle.com/v1/w3s/baseSepolia", "placeholder-key");
+}
 
 // ── Public Client ──
 export const circlePublicClient = createPublicClient({
