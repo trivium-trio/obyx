@@ -61,7 +61,7 @@ jobs:
 
       - name: Deploy to Preview
         if: github.ref != 'refs/heads/main' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        run: vercel deploy --prebuilt --yes --archive=tgz --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --yes --archive=tgz --no-wait --token=${{ secrets.VERCEL_TOKEN }}
 
       # --- STEPS FOR MAIN BRANCH (Live Production) ---
       - name: Pull Vercel environment (Production)
@@ -74,4 +74,4 @@ jobs:
 
       - name: Deploy to Production
         if: github.ref == 'refs/heads/main'
-        run: vercel deploy --prebuilt --prod --yes --archive=tgz --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod --yes --archive=tgz --no-wait --token=${{ secrets.VERCEL_TOKEN }}
