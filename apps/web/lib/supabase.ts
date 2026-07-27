@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-let supabase;
+let supabase: ReturnType<typeof createClient>;
 try {
   let url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   if (!url || url.includes("[SENSITIVE]") || url.includes("***") || url === "undefined" || url === "null") {

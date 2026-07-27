@@ -33,8 +33,7 @@ export const USDC_CONTRACT_ADDRESS =
   "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
 export const USDC_DECIMALS = 6;
 
-// ── Transport ──
-let modularTransport;
+let modularTransport: ReturnType<typeof toModularTransport>;
 try {
   let url = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_URL || "";
   if (!url || url.includes("[SENSITIVE]") || url.includes("***")) {
