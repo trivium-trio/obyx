@@ -2,7 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   async rewrites() {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+    let apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+    if (!apiBaseUrl.startsWith("http://") && !apiBaseUrl.startsWith("https://") && !apiBaseUrl.startsWith("/")) {
+      apiBaseUrl = `https://${apiBaseUrl}`;
+    }
     // Ensure no trailing slash so /:path* appends correctly
     const cleanBaseUrl = apiBaseUrl.replace(/\/$/, "");
 
