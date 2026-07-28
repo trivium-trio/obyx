@@ -319,3 +319,8 @@ The implementation is divided into four distinct engineering subsystems. These t
 ---
 
 ## 4. Verification & Testing Protocol
+
+Upon completion of the code modifications, execute the following validation steps:
+
+1. **Auth Gating Verification**: In an unauthenticated browser session, navigate to the dashboard or home swap widget. Attempt to click "Connect Wallet". Verify redirection to `/auth/signup` without invoking the Dynamic SDK modal.
+2. **Dynamic UX Verification**: Authenticate with a valid Supabase account. Invoke wallet connection and select MetaMask. Verify that MetaMask prompts for connection immediately without Dynamic SDK requesting email verification.
