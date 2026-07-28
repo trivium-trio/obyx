@@ -66,3 +66,11 @@ The implementation is divided into four distinct engineering subsystems. These t
   * *Specification*: Implement an explicit `provisionObyxWallet()` method within the context and expose it through the public interface.
 * [ ] **Task 2.3: Wire UI Selection to Explicit SCA Provisioning**
   * *Target File*: `apps/web/components/dashboard/WalletWidget.tsx`
+  * *Specification*: Update the wallet switch popover such that selecting "OBYX Wallet" triggers `provisionObyxWallet()` if an embedded address has not yet been provisioned.
+
+### Phase 3: Active Wallet Synchronization (Frontend $\rightarrow$ Backend)
+* [ ] **Task 3.1: Synchronize Database Record on Active Wallet Switch**
+  * *Target File*: `apps/web/components/dashboard/WalletWidget.tsx`
+  * *Specification*: Invoke `UserService.postUserLinkWallet` whenever `setActiveWallet` toggles between external EOA and embedded SCA.
+* [ ] **Task 3.2: Explicit Address Payload in Onramp Initiation**
+  * *Target File*: `apps/web/components/home/SwapWidget.tsx`
