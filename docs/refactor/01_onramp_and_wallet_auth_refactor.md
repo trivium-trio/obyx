@@ -151,3 +151,60 @@ The implementation is divided into four distinct engineering subsystems. These t
       disconnect,
     } = useWallet();
 
+    const { primaryWallet, setShowAuthFlow } = useDynamicContext();
+    const { setShowLinkNewWalletModal } = useDynamicModals();
++   const { user } = useAuth();
++   const router = useRouter();
+
+    // ... (keep helper methods)
+
+    // ── Disconnected State ──
+    if (!isConnected) {
++     if (!user) {
++       return (
++         <motion.button
++           whileHover={{ scale: 1.02 }}
++           whileTap={{ scale: 0.98 }}
++           onClick={() => router.push("/auth/signup")}
++           className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-neon-orange to-neon-amber text-white shadow-lg cursor-pointer"
++         >
++           <Wallet className="h-4 w-4" />
++           Sign Up to Connect Wallet
++         </motion.button>
++       );
++     }
++
+      return (
+        <DynamicWidget
+          innerButtonComponent={
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-neon-orange to-neon-amber text-white hover:shadow-[0_0_20px_rgba(255,107,0,0.25)] transition-all duration-300 cursor-pointer"
+            >
+              <Wallet className="h-4 w-4" />
+              Connect Wallet
+            </motion.div>
+          }
+        />
+      );
+    }
+    
+    // ... (inside switch modal options)
+    
+                {/* OBYX Embedded Wallet (Circle SA) */}
+                <button
+-                 onClick={() => {
+-                   setActiveWallet("embedded");
+-                   setShowSwitchModal(false);
+-                 }}
++                 onClick={async () => {
++                   setShowSwitchModal(false);
++                   if (!circleAddress) {
++                     await provisionObyxWallet();
++                   } else {
++                     setActiveWallet("embedded");
++                   }
++                 }}
+                  className={cn(
+```
