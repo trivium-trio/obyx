@@ -274,3 +274,16 @@ The implementation is divided into four distinct engineering subsystems. These t
 +       await UserService.postUserLinkWallet({ walletAddress: smartAccount.address });
 +       console.log("[WALLET] Provisioned & linked OBYX Smart Account:", smartAccount.address);
 +     } catch (err: any) {
++       console.error("Circle Smart Account explicit init failed:", err);
++       setCircleError(err.message || "Failed to initialize OBYX Wallet");
++     } finally {
++       setIsInitializingCircle(false);
++     }
++   }, [primaryWallet, walletAddress]);
+
+    // ... return Provider including provisionObyxWallet in value ...
+  }
+```
+
+---
+
