@@ -86,3 +86,8 @@ The implementation is divided into four distinct engineering subsystems. These t
 
 ---
 
+## 3. Reference Implementation & Exact Code Modifications
+
+### 3.1 `apps/web/components/providers/DynamicProviderWrapper.tsx`
+**Engineering Goal**: Sync Supabase email profile with Dynamic SDK settings to bypass secondary email prompts.
+
