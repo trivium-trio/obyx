@@ -310,3 +310,12 @@ The implementation is divided into four distinct engineering subsystems. These t
 
 +   // --- Synchronize active wallet in database for downstream webhook disbursements ---
 +   if (requestedWallet && requestedWallet !== user.walletAddress) {
++     user.walletAddress = targetWalletAddress;
++     await user.save();
++     console.log(`[ONRAMP] Synced User ${userId} active wallet to: ${targetWalletAddress}`);
++   }
+```
+
+---
+
+## 4. Verification & Testing Protocol
