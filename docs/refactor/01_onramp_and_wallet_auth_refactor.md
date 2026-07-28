@@ -55,3 +55,14 @@ The implementation is divided into four distinct engineering subsystems. These t
   * *Specification*: Validate Supabase authentication state (`if (!user)`) prior to rendering the wallet connection modal, redirecting unauthenticated visitors to `/auth/signup`.
 * [ ] **Task 1.3: Enforce Auth-Gating on Swap Initiation Actions**
   * *Target File*: `apps/web/components/home/SwapWidget.tsx`
+  * *Specification*: Add authentication verification to conversion action buttons to ensure users cannot attempt conversion flows without an active Supabase session.
+
+### Phase 2: Explicit Lazy Circle SCA Provisioning (Frontend)
+* [ ] **Task 2.1: Remove Eager SCA Auto-Initialization**
+  * *Target File*: `apps/web/lib/WalletContext.tsx`
+  * *Specification*: Remove the automatic `initCircleSmartAccount()` invocation from the primary EOA connection `useEffect` hook.
+* [ ] **Task 2.2: Create Standalone SCA Provisioning Handler**
+  * *Target File*: `apps/web/lib/WalletContext.tsx`
+  * *Specification*: Implement an explicit `provisionObyxWallet()` method within the context and expose it through the public interface.
+* [ ] **Task 2.3: Wire UI Selection to Explicit SCA Provisioning**
+  * *Target File*: `apps/web/components/dashboard/WalletWidget.tsx`
