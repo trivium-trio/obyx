@@ -39,3 +39,19 @@ sequenceDiagram
     API->>DB: 6. Update User.walletAddress = activeWalletAddress
     API-->>User: 201 Created (STK Push sent to active destination!)
 ```
+
+---
+
+## 2. Technical Scope & Implementation Roadmap
+
+The implementation is divided into four distinct engineering subsystems. These tasks may be executed sequentially or in parallel by the engineering team.
+
+### Phase 1: Dynamic SDK UX & Auth Synchronization (Frontend)
+* [ ] **Task 1.1: Supabase Profile Injection into Dynamic Provider**
+  * *Target File*: `apps/web/components/providers/DynamicProviderWrapper.tsx`
+  * *Specification*: Inject `useAuth()` user profile session data into `DynamicContextProvider` settings and set `initialAuthenticationMode: "connect-only"` to bypass redundant email prompts during external wallet onboarding.
+* [ ] **Task 1.2: Enforce Auth-Gating on Dashboard Wallet Widget**
+  * *Target File*: `apps/web/components/dashboard/WalletWidget.tsx`
+  * *Specification*: Validate Supabase authentication state (`if (!user)`) prior to rendering the wallet connection modal, redirecting unauthenticated visitors to `/auth/signup`.
+* [ ] **Task 1.3: Enforce Auth-Gating on Swap Initiation Actions**
+  * *Target File*: `apps/web/components/home/SwapWidget.tsx`
