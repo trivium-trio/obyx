@@ -324,3 +324,5 @@ Upon completion of the code modifications, execute the following validation step
 
 1. **Auth Gating Verification**: In an unauthenticated browser session, navigate to the dashboard or home swap widget. Attempt to click "Connect Wallet". Verify redirection to `/auth/signup` without invoking the Dynamic SDK modal.
 2. **Dynamic UX Verification**: Authenticate with a valid Supabase account. Invoke wallet connection and select MetaMask. Verify that MetaMask prompts for connection immediately without Dynamic SDK requesting email verification.
+3. **Lazy Provisioning Verification**: Connect MetaMask EOA. Inspect local state and blockchain explorer; confirm `circleAddress` remains `null` and no counterfactual SCA contract is initialized. Navigate to wallet switcher, select "OBYX Wallet", and verify `provisionObyxWallet` executes and returns the SCA address.
+4. **Dynamic Onramp Routing Verification**: Set active wallet to external EOA. Initiate a 100 KES Onramp transaction. Inspect server logs to confirm `[ONRAMP] Synced User ... active wallet to: 0x...`. Complete payment simulation and verify testnet USDC disbursement reaches the targeted EOA address.
