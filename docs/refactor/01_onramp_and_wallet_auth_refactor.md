@@ -208,3 +208,16 @@ The implementation is divided into four distinct engineering subsystems. These t
 +                 }}
                   className={cn(
 ```
+
+---
+
+### 3.3 `apps/web/lib/WalletContext.tsx`
+**Engineering Goal**: Remove eager Circle SCA background initialization and expose an explicit provisioning handler.
+
+```diff
+  interface WalletContextType {
+    walletAddress: string | null;
+    circleAddress: string | null;
+    activeWalletAddress: string | null;
+    activeWallet: ActiveWalletType;
+    setActiveWallet: (type: ActiveWalletType) => void;
