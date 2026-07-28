@@ -221,3 +221,25 @@ The implementation is divided into four distinct engineering subsystems. These t
     activeWalletAddress: string | null;
     activeWallet: ActiveWalletType;
     setActiveWallet: (type: ActiveWalletType) => void;
++   provisionObyxWallet: () => Promise<void>;
+    userPhone: string | null;
+    setUserPhone: (phone: string | null) => void;
+    isConnected: boolean;
+    isInitializingCircle: boolean;
+    circleError: string | null;
+    sendGaslessSwap: (to: string, usdcAmount: number) => Promise<{ userOpHash: string; txHash: string; }>;
+    disconnect: () => Promise<void>;
+  }
+
+  export function WalletProvider({ children }: { children: ReactNode }) {
+    // ... state variables ...
+
+    // ── Initialize EOA & Fetch Profile when wallet connects ──
+    useEffect(() => {
+      if (!primaryWallet || !isEthereumWallet(primaryWallet)) {
+        setWalletAddress(null);
+        setCircleAddress(null);
+        setUserPhone(null);
+        setCircleError(null);
+        bundlerClientRef.current = null;
+        initAttemptedForRef.current = null;
