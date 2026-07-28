@@ -135,3 +135,19 @@ The implementation is divided into four distinct engineering subsystems. These t
 ---
 
 ### 3.2 `apps/web/components/dashboard/WalletWidget.tsx`
+**Engineering Goal**: Restrict wallet connection to authenticated users and bind embedded wallet selection to lazy SCA provisioning.
+
+```diff
+  export function WalletWidget() {
+    const {
+      walletAddress,
+      circleAddress,
+      activeWallet,
+      setActiveWallet,
++     provisionObyxWallet,
+      isConnected,
+      isInitializingCircle,
+      circleError,
+      disconnect,
+    } = useWallet();
+
