@@ -287,3 +287,12 @@ The implementation is divided into four distinct engineering subsystems. These t
 
 ---
 
+### 3.4 `apps/api/routes/onramp.routes.js`
+**Engineering Goal**: Resolve active destination address cleanly and sync user database record for downstream webhooks.
+
+```diff
+    // --- Resolve destination wallet: prefer the active wallet sent by the frontend, fall back to stored EOA ---
+    const targetWalletAddress = requestedWallet || user.walletAddress;
+    if (!targetWalletAddress) {
+      return res.status(400).json({
+        success: false,
