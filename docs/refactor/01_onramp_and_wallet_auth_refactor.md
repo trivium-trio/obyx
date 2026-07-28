@@ -74,3 +74,15 @@ The implementation is divided into four distinct engineering subsystems. These t
   * *Specification*: Invoke `UserService.postUserLinkWallet` whenever `setActiveWallet` toggles between external EOA and embedded SCA.
 * [ ] **Task 3.2: Explicit Address Payload in Onramp Initiation**
   * *Target File*: `apps/web/components/home/SwapWidget.tsx`
+  * *Specification*: Enforce that `OnrampService.postOnrampInit` payloads strictly include `walletAddress: activeWalletAddress` from context.
+
+### Phase 4: Backend Address Resolution & DB Synchronization (Backend)
+* [ ] **Task 4.1: Prioritize Requested Destination in Onramp Handler**
+  * *Target File*: `apps/api/routes/onramp.routes.js`
+  * *Action*: Refactor `/onramp/init` to prioritize `req.body.walletAddress` and update `user.walletAddress` in the database dynamically to ensure subsequent webhooks disburse correctly.
+* [ ] **Task 4.2: Strict EVM Address Format Validation**
+  * *Target File*: `apps/api/routes/onramp.routes.js`
+  * *Action*: Implement strict regex validation (`^0x[a-fA-F0-9]{40}$`) on the resolved destination wallet before initiating the Paystack STK push.
+
+---
+
