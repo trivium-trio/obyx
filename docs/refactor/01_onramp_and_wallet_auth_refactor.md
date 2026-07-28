@@ -243,3 +243,34 @@ The implementation is divided into four distinct engineering subsystems. These t
         setCircleError(null);
         bundlerClientRef.current = null;
         initAttemptedForRef.current = null;
+        return;
+      }
+
+      const addr = primaryWallet.address;
+      setWalletAddress(addr);
+
+      UserService.getUserProfile().then((profile) => {
+        if (profile?.phoneNumber) setUserPhone(profile.phoneNumber);
+      });
+
+-     // REMOVED EAGER CIRCLE SMART ACCOUNT INITIALIZATION HERE
+    }, [primaryWallet]);
+
++   // ── Explicit SCA Provisioning Handler ──
++   const provisionObyxWallet = useCallback(async () => {
++     if (!primaryWallet || !walletAddress) return;
++     setIsInitializingCircle(true);
++     setCircleError(null);
++     try {
++       const walletClient = await (primaryWallet.connector as any).getWalletClient();
++       const smartAccount = await initCircleSmartAccount(walletClient as any, walletAddress);
++       const bundlerClient = createCircleBundlerClient(smartAccount);
++
++       bundlerClientRef.current = bundlerClient;
++       setCircleAddress(smartAccount.address);
++       setActiveWallet("embedded");
++
++       // Synchronize embedded wallet address with backend
++       await UserService.postUserLinkWallet({ walletAddress: smartAccount.address });
++       console.log("[WALLET] Provisioned & linked OBYX Smart Account:", smartAccount.address);
++     } catch (err: any) {
