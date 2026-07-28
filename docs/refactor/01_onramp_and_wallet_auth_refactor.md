@@ -118,3 +118,20 @@ The implementation is divided into four distinct engineering subsystems. These t
           walletConnectPreferredChains: ["eip155:84532"], // Base Sepolia chain ID
 +         initialAuthenticationMode: "connect-only",
 +         userProfile: user ? { email: user.email } : undefined,
+        }}
+      >
+        <WagmiProvider config={wagmiConfig}>
+          <QueryClientProvider client={queryClient}>
+            <WalletProvider>
+              <TransactionHistoryProvider>{children}</TransactionHistoryProvider>
+            </WalletProvider>
+          </QueryClientProvider>
+        </WagmiProvider>
+      </DynamicContextProvider>
+    );
+  }
+```
+
+---
+
+### 3.2 `apps/web/components/dashboard/WalletWidget.tsx`
