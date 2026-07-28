@@ -91,3 +91,30 @@ The implementation is divided into four distinct engineering subsystems. These t
 ### 3.1 `apps/web/components/providers/DynamicProviderWrapper.tsx`
 **Engineering Goal**: Sync Supabase email profile with Dynamic SDK settings to bypass secondary email prompts.
 
+```diff
+  "use client";
+
+  import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
+  import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
+  import { WagmiProvider } from "wagmi";
+  import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+  import { wagmiConfig } from "@/lib/wagmi";
+  import { WalletProvider } from "@/lib/WalletContext";
+  import { TransactionHistoryProvider } from "@/lib/TransactionHistoryContext";
++ import { useAuth } from "@/lib/AuthContext";
+  import type { ReactNode } from "react";
+
+  const DYNAMIC_ENV_ID = (process.env.NEXT_PUBLIC_DYNAMIC_ENV_ID || "placeholder-env-id") as string;
+  const queryClient = new QueryClient();
+
+  export function DynamicProviderWrapper({ children }: { children: ReactNode }) {
++   const { user } = useAuth();
++
+    return (
+      <DynamicContextProvider
+        settings={{
+          environmentId: DYNAMIC_ENV_ID,
+          walletConnectors: [EthereumWalletConnectors],
+          walletConnectPreferredChains: ["eip155:84532"], // Base Sepolia chain ID
++         initialAuthenticationMode: "connect-only",
++         userProfile: user ? { email: user.email } : undefined,
