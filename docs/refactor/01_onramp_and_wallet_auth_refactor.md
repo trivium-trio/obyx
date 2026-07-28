@@ -296,3 +296,17 @@ The implementation is divided into four distinct engineering subsystems. These t
     if (!targetWalletAddress) {
       return res.status(400).json({
         success: false,
+        error: 'No wallet address found. Please connect a wallet first.',
+      });
+    }
+
++   // --- Validate Ethereum Address Format ---
++   if (!/^0x[a-fA-F0-9]{40}$/.test(targetWalletAddress)) {
++     return res.status(400).json({
++       success: false,
++       error: 'Invalid target wallet address format.',
++     });
++   }
+
++   // --- Synchronize active wallet in database for downstream webhook disbursements ---
++   if (requestedWallet && requestedWallet !== user.walletAddress) {
