@@ -32,9 +32,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+
+  // logs for console to check for issue
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const originalRemoveItem = localStorage.removeItem;
+      const originalClear = localStorage.clear;
+
+      localStorage.removeItem = function (key) {
+        if (key.includes('sb-') || key.includes('supabase')) {
+          console.log("[DEBUG LOCALSTORAGE] removeItem called for Supabase key:", key);
+          console.trace();
+        }
+        return originalRemoveItem.apply(this, arguments as any);
+      };
+
+      localStorage.clear = function () {
+        console.log("[DEBUG LOCALSTORAGE] clear called");
+        console.trace();
+        return originalClear.apply(this, arguments as any);
+      };
+    }
+
     // Get the initial session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      console.log("[AUTH] getSession resolved. hasSession:", !!initialSession);
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
       setLoading(false);
@@ -44,20 +66,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      console.log("[AUTH] onAuthStateChange event:", _event, "hasSession:", !!newSession);
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
 
       if (_event === "SIGNED_IN") {
+        console.log("[AUTH] SIGNED_IN event. Redirecting to /dashboard");
         router.push("/dashboard");
       }
 
       if (_event === "SIGNED_OUT") {
+        console.log("[AUTH] SIGNED_OUT event. Redirecting to /");
         router.push("/");
       }
     });
 
     return () => {
+      console.log("[AUTH] useEffect cleanup. Unsubscribing onAuthStateChange");
       subscription.unsubscribe();
     };
   }, [router]);
