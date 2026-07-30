@@ -210,3 +210,18 @@ export const initiateTransfer = async (amountInKes, recipientCode, reference) =>
 
   return result.data;
 };
+
+/**
+ * Execute an off-ramp payout via Paystack once USDC deposit is confirmed.
+ *
+ * @param {string} name - Recipient name for the payout recipient
+ * @param {string} phoneNumber - Recipient mobile money phone number
+ * @param {number} amountInKes - Amount in KES to disburse
+ * @param {string} reference - Unique reference for idempotency and tracing
+ * @returns {Promise<object>} - Paystack transfer response
+ */
+export const executeOfframpPayout = async (name, phoneNumber, amountInKes, reference) => {
+  const recipient = await createTransferRecipient(name, phoneNumber);
+  const transfer = await initiateTransfer(amountInKes, recipient.recipient_code, reference);
+  return transfer;
+};

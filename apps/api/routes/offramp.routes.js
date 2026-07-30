@@ -208,30 +208,14 @@ router.post('/confirm', verifySupabaseToken, async (req, res) => {
     if (!transaction) return res.status(404).json({ success: false, error: 'Transaction not found.' });
     if (transaction.status !== 'PENDING') return res.status(400).json({ success: false, error: 'Transaction already processing.' });
 
-    await transaction.update({ status: 'CRYPTO_PROCESSING', txHash });
-    console.log(`[OFFRAMP] USDC transfer initiated on-chain: ${txHash}`);
-    //set circle webhook in place to trigger this endpoint when the USDC is received
-    setTimeout(async () => {
-      try {
-        console.log(`[OFFRAMP] Confirmed USDC receipt for ${transaction.id}. Initiating payout...`);
-        const user = await User.findByPk(userId);
+    await transaction.update({ status: 'AWAITING_DEPOSIT', txHash: txHash });
+    console.log(`[OFFRAMP] USDC transfer initiated on-chain: ${txHash}. Transaction awaiting deposit confirmation.`);
 
-        // 1. Create Recipient
-        const recipient = await createTransferRecipient('Obyx User', user.phoneNumber);
-
-        // 2. Initiate Transfer
-        await initiateTransfer(transaction.fiatAmount, recipient.recipient_code, transaction.id);
-
-        // 3. Mark complete
-        await transaction.update({ status: 'COMPLETED' });
-        console.log(`[OFFRAMP] Payout completed for ${transaction.id}`);
-      } catch (e) {
-        console.error(`[OFFRAMP] Payout failed for ${transaction.id}:`, e);
-        await transaction.update({ status: 'FAILED' });
-      }
-    }, 5000); // 5 second mock delay
-
-    return res.status(200).json({ success: true, message: 'Processing your payout.' });
+    return res.status(200).json({
+      success: true,
+      message: 'Transaction confirmed on-chain. Awaiting treasury deposit before payout.',
+      data: { status: 'AWAITING_DEPOSIT' },
+    });
   } catch (err) {
     console.error('[OFFRAMP] Confirm error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
