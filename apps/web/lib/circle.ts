@@ -38,7 +38,7 @@ const modularTransport = toModularTransport(
 // ── Public Client ──
 export const circlePublicClient = createPublicClient({
   chain: baseSepolia,
-  transport: modularTransport,
+  transport: modularTransport as any,
 });
 
 /**
@@ -84,7 +84,7 @@ export async function initCircleSmartAccount(walletClient: WalletClient, fallbac
   const owner = walletClientToOwner(walletClient, fallbackAddress);
 
   const smartAccount = await toCircleSmartAccount({
-    client: circlePublicClient,
+    client: circlePublicClient as any,
     owner,
   });
 
@@ -100,7 +100,7 @@ export function createCircleBundlerClient(
   return createBundlerClient({
     account: smartAccount,
     chain: baseSepolia,
-    transport: modularTransport,
+    transport: modularTransport as any,
   });
 }
 
