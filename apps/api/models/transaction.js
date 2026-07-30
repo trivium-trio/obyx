@@ -16,7 +16,7 @@ export default (sequelize) => {
       }
     },
     type: {
-      type: DataTypes.ENUM('ONRAMP', 'OFFRAMP'),
+      type: DataTypes.ENUM('ONRAMP', 'OFFRAMP', 'TRANSFER'),
       allowNull: false,
     },
     status: {
@@ -28,13 +28,15 @@ export default (sequelize) => {
         'PAYOUT_SENT',     // Circle confirmed transfer
         'COMPLETE',        // Circle confirmed on-chain completion (txHash available)
         'FAILED',          // charge.failed or STK timeout, before payment received
-        'PAYOUT_FAILED'    // payment received but Circle send failed — critical state
+        'PAYOUT_FAILED',   // payment received but Circle send failed — critical state
+        'PENDING',         // wallet-to-wallet transfer: row created, funds locked
+        'TRANSFER_SENT'    // wallet-to-wallet transfer: Circle SDK accepted the tx
       ),
       defaultValue: 'INITIATED',
     },
     fiatAmount: {
       type: DataTypes.DECIMAL(10, 2), // e.g., 1500.50 KES
-      allowNull: false,
+      allowNull: true,               // nullable for crypto-only transfers
     },
     fiatCurrency: {
       type: DataTypes.STRING(3),
@@ -50,7 +52,7 @@ export default (sequelize) => {
     },
     exchangeRate: {
       type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
+      allowNull: true,               // nullable for crypto-only transfers
       comment: "The locked FX rate at the time of transaction (e.g., 1 USDC = 130 KES)"
     },
     paystackReference: {
