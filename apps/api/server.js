@@ -13,6 +13,7 @@ import onrampRoutes from './routes/onramp.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import paystackRoutes from './routes/paystack.routes.js';
 import offrampRoutes from './routes/offramp.routes.js';
+import transferRoutes from './routes/transfer.routes.js';
 
 // Import database
 import { sequelize } from './models/index.js';
@@ -54,6 +55,7 @@ app.use('/api/v1/offramp', offrampRoutes);
 app.use('/api/v1/paystack', paystackRoutes);
 
 app.use('/api/v1/webhooks', webhookRoutes);
+app.use('/api/v1/transfer', transferRoutes);
 const PORT = config.PORT;
 
 import { startPayoutWorker } from './workers/payout.worker.js';

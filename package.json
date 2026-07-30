@@ -11,5 +11,12 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.3"
+  },
+  "dependencies": {
+    "@circle-fin/modular-wallets-core": "^1.0.15",
+    "@dynamic-labs-sdk/client": "^1.23.0",
+    "@dynamic-labs-sdk/evm": "^1.23.0",
+    "@dynamic-labs/ethereum-aa": "^4.94.0",
+    "viem": "^2.55.10"
   }
 }
