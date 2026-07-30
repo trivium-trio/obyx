@@ -19,6 +19,11 @@ export default (sequelize) => {
       set(val) {
         if (val) this.setDataValue('walletAddress', val.toLowerCase());
       }
+    },
+    circleWalletId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Circle Developer-Controlled SCA wallet ID for this user"
     }
   }, {
     tableName: 'users',

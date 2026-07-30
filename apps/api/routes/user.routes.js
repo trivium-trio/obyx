@@ -2,8 +2,90 @@
 import { Router } from 'express';
 import { User, Transaction } from '../models/index.js';
 import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
+import { createUserWallet } from '../services/circle.service.js';
 
 const router = Router();
+
+/**
+ * @openapi
+ * /user/provision-wallet:
+ *   post:
+ *     summary: Provision a Circle SCA wallet for the user
+ *     description: >
+ *       Creates a new Smart Contract Account (SCA) wallet on Base Sepolia
+ *       for the authenticated user via Circle's Developer-Controlled Wallets.
+ *       This wallet is required for gasless USDC transfers.
+ *       Returns 409 if the user already has a provisioned wallet.
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: SCA wallet provisioned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Circle SCA wallet provisioned successfully.
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     circleWalletId:
+ *                       type: string
+ *                     walletAddress:
+ *                       type: string
+ *       409:
+ *         description: User already has a provisioned wallet
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/provision-wallet', verifySupabaseToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    let user = await User.findByPk(userId);
+    if (!user) {
+      user = await User.create({ id: userId });
+    }
+
+    if (user.circleWalletId) {
+      return res.status(409).json({
+        success: false,
+        error: 'Circle SCA wallet already provisioned for this user.',
+        data: { circleWalletId: user.circleWalletId },
+      });
+    }
+
+    const { walletId, address } = await createUserWallet(userId);
+
+    user.circleWalletId = walletId;
+    await user.save();
+
+    console.log(`[USER] Circle SCA wallet provisioned: ${walletId} -> User: ${userId}`);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Circle SCA wallet provisioned successfully.',
+      data: {
+        circleWalletId: walletId,
+        walletAddress: address,
+      },
+    });
+  } catch (err) {
+    console.error('[USER] Error provisioning Circle wallet:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error while provisioning Circle wallet.',
+    });
+  }
+});
 /**
  * @openapi
  * /user/link-wallet:
