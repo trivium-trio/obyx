@@ -12,6 +12,7 @@
 // M-Pesa STK Push charges and payment verifications.
 // =============================================================================
 import config from '../config/env.js';
+import { User } from '../models/index.js';
 
 /**
  * Trigger a real M-Pesa STK Push via Paystack Charge API.
@@ -220,8 +221,29 @@ export const initiateTransfer = async (amountInKes, recipientCode, reference) =>
  * @param {string} reference - Unique reference for idempotency and tracing
  * @returns {Promise<object>} - Paystack transfer response
  */
-export const executeOfframpPayout = async (name, phoneNumber, amountInKes, reference) => {
-  const recipient = await createTransferRecipient(name, phoneNumber);
-  const transfer = await initiateTransfer(amountInKes, recipient.recipient_code, reference);
-  return transfer;
+/**
+ * Execute an off-ramp payout once the Treasury has received the USDc deposit.
+ * This is a terminal payout step for the off-ramp flow.
+ *
+ * @param {import('../models/transaction.js').default} transaction
+ * @returns {Promise<void>}
+ */
+export const executeOfframpPayout = async (transaction) => {
+  const user = await User.findByPk(transaction.userId);
+  if (!user) {
+    throw new Error(`User missing for transaction ${transaction.id}`);
+  }
+  if (!user.phoneNumber) {
+    throw new Error(`User phone number missing for transaction ${transaction.id}`);
+  }
+
+  const recipient = await createTransferRecipient('Obyx Offramp Recipient', user.phoneNumber);
+  const transfer = await initiateTransfer(transaction.fiatAmount, recipient.recipient_code, transaction.id);
+
+  await transaction.update({
+    status: 'COMPLETED',
+    failureReason: null,
+  });
+
+  console.log(`[PAYSTACK] Offramp payout completed for tx ${transaction.id}, transfer id: ${transfer.id || transaction.id}`);
 };

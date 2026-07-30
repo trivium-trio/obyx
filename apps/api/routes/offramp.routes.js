@@ -2,7 +2,6 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { User, Transaction } from '../models/index.js';
 import verifySupabaseToken from '../middleware/verifySupabaseToken.js';
-import { createTransferRecipient, initiateTransfer } from '../services/paystack.service.js';
 import config from '../config/env.js';
 
 const router = Router();
@@ -113,7 +112,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
     const transaction = await Transaction.create({
       userId,
       type: 'OFFRAMP',
-      status: 'PENDING',
+      status: 'INITIATED',
       cryptoAmount,
       cryptoCurrency: 'USDC',
       fiatAmount,
@@ -122,13 +121,8 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
     });
 
     console.log(`[OFFRAMP] Transaction created: ${transaction.id} | ${cryptoAmount} USDC -> ${fiatAmount} KES`);
-    //use  actual obyx  wallet address here instead of a dummy one
-    // We return the treasury address so the frontend knows where to send the USDC
-    // Note: To dynamically fetch it, you could use config.CIRCLE_TESTNET_WALLET_ID and listWallets
-    // But typically you'd have the Treasury Address in env too, or hardcoded for the demo.
-    // Let's rely on frontend or add an endpoint to get the treasury address.
-    // Actually, we'll just return it in the payload. We need the actual address.
-    // For now we'll just tell frontend to expect it.
+    // Return the configured treasury wallet address to ensure the frontend deposits
+    // funds into the OBYX Treasury rather than back to the user's own wallet.
 
     return res.status(201).json({
       success: true,
@@ -138,7 +132,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
         fiatAmount,
         exchangeRate: EXCHANGE_RATE,
         status: transaction.status,
-        treasuryAddress: process.env.OBYX_TREASURY || "0xYourTreasuryWalletAddress",
+        treasuryAddress: config.TREASURY_WALLET_ADDRESS,
       },
     });
   } catch (err) {
@@ -206,7 +200,7 @@ router.post('/confirm', verifySupabaseToken, async (req, res) => {
 
     const transaction = await Transaction.findOne({ where: { id: transactionId, userId } });
     if (!transaction) return res.status(404).json({ success: false, error: 'Transaction not found.' });
-    if (transaction.status !== 'PENDING') return res.status(400).json({ success: false, error: 'Transaction already processing.' });
+    if (transaction.status !== 'INITIATED') return res.status(400).json({ success: false, error: 'Transaction already processing.' });
 
     await transaction.update({ status: 'AWAITING_DEPOSIT', txHash: txHash });
     console.log(`[OFFRAMP] USDC transfer initiated on-chain: ${txHash}. Transaction awaiting deposit confirmation.`);
