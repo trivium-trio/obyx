@@ -74,6 +74,9 @@ const MAX_CRYPTO_AMOUNT = 5000; // Maximum 5000 USDC (~650,000 KES)
  *                       type: number
  *                     status:
  *                       type: string
+ *                     treasuryAddress:
+ *                       type: string
+ *                       description: The OBYX treasury wallet address for USDC deposits
  *       400:
  *         description: Bad request – invalid amount or missing user phone number
  *       404:
@@ -135,6 +138,7 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
         fiatAmount,
         exchangeRate: EXCHANGE_RATE,
         status: transaction.status,
+        treasuryAddress: process.env.OBYX_TREASURY || "0xYourTreasuryWalletAddress",
       },
     });
   } catch (err) {
