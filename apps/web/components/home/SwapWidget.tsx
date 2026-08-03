@@ -19,7 +19,10 @@ import {
   Send,
   Download,
   Copy,
-  QrCode
+  QrCode,
+  ExternalLink,
+  CheckCircle2,
+  XCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { conversionRates } from "@/lib/mock-data";
@@ -47,9 +50,9 @@ const ERC20_BALANCE_ABI = [
 
 // Helper to get active wallet spendable USDC balance via direct RPC.
 // Bypasses Dynamic's internal token indexing API which returns 422 on Base Sepolia.
-function useActiveUsdcBalance(): { balance: number; isLoading: boolean } {
+function useActiveUsdcBalance(): { balance: number; isLoading: boolean; refetch: () => void } {
   const { activeWalletAddress } = useWallet();
-  const { data, isLoading } = useReadContract({
+  const { data, isLoading, refetch } = useReadContract({
     address: BASE_SEPOLIA_USDC,
     abi: ERC20_BALANCE_ABI,
     functionName: "balanceOf",
@@ -61,7 +64,7 @@ function useActiveUsdcBalance(): { balance: number; isLoading: boolean } {
   });
   // USDC has 6 decimals
   const balance = data ? Number(data) / 1e6 : 0;
-  return { balance, isLoading };
+  return { balance, isLoading, refetch };
 }
 
 // ════════════════════════════════════════════════════════
@@ -97,6 +100,114 @@ const WXMIcon = ({ className }: { className?: string }) => (
 );
 
 // ════════════════════════════════════════════════════════
+// TRANSACTION OVERLAY
+// ════════════════════════════════════════════════════════
+
+type TxOverlayState =
+  | { phase: "idle" }
+  | { phase: "executing"; message: string }
+  | { phase: "success"; summary: string; txHash?: string; resultMsg?: string }
+  | { phase: "error"; message: string };
+
+function TransactionOverlay({
+  state,
+  onDone,
+  onRetry,
+  onClose,
+}: {
+  state: TxOverlayState;
+  onDone: () => void;
+  onRetry: () => void;
+  onClose: () => void;
+}) {
+  if (state.phase === "idle") return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#13121C]/95 backdrop-blur-md p-6 rounded-[24px] sm:rounded-3xl"
+    >
+      {state.phase === "executing" && (
+        <div className="flex flex-col items-center text-center">
+          <Loader2 className="w-16 h-16 text-neon-orange animate-spin mb-6" />
+          <h3 className="text-xl font-bold text-white mb-2">Executing...</h3>
+          <p className="text-sm text-white/60 max-w-[250px]">{state.message}</p>
+          <div className="mt-8 text-xs text-white/40 bg-white/[0.05] px-4 py-2 rounded-lg border border-white/[0.05]">
+            Please do not close this window
+          </div>
+        </div>
+      )}
+
+      {state.phase === "success" && (
+        <div className="flex flex-col items-center text-center w-full">
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", bounce: 0.5 }}
+          >
+            <CheckCircle2 className="w-20 h-20 text-success mb-6" />
+          </motion.div>
+          <h3 className="text-xl font-bold text-white mb-2">Success!</h3>
+          <p className="text-sm font-medium text-white/80 mb-2">{state.summary}</p>
+          {state.resultMsg && <p className="text-xs text-success/80 mb-6 bg-success/10 px-3 py-1.5 rounded-lg">{state.resultMsg}</p>}
+          {!state.resultMsg && <div className="mb-6" />}
+          
+          {state.txHash && (
+            <a
+              href={`https://sepolia.basescan.org/tx/${state.txHash}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 text-xs text-info hover:text-info/80 transition-colors mb-8 bg-info/10 px-3 py-1.5 rounded-full"
+            >
+              Tx: {state.txHash.slice(0, 8)}...{state.txHash.slice(-6)}
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+          
+          <button
+            onClick={onDone}
+            className="w-full max-w-[200px] py-3.5 rounded-xl bg-surface-800 hover:bg-surface-700 text-white font-bold transition-colors border border-white/[0.1]"
+          >
+            Done
+          </button>
+        </div>
+      )}
+
+      {state.phase === "error" && (
+        <div className="flex flex-col items-center text-center w-full">
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", bounce: 0.5 }}
+          >
+            <XCircle className="w-20 h-20 text-danger mb-6" />
+          </motion.div>
+          <h3 className="text-xl font-bold text-white mb-2">Transaction Failed</h3>
+          <p className="text-sm text-danger/80 mb-8 max-w-[250px] break-words">{state.message}</p>
+          
+          <div className="flex gap-3 w-full max-w-[250px]">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3.5 rounded-xl bg-surface-800 hover:bg-surface-700 text-white font-bold transition-colors border border-white/[0.1]"
+            >
+              Close
+            </button>
+            <button
+              onClick={onRetry}
+              className="flex-1 py-3.5 rounded-xl bg-neon-orange hover:bg-neon-amber text-white font-bold transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ════════════════════════════════════════════════════════
 // MODALS
 // ════════════════════════════════════════════════════════
 
@@ -104,16 +215,23 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
   const { circleAddress, sendGaslessSwap, isConnected, activeWallet } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
-  const { balance: usdcBalance } = useActiveUsdcBalance();
+  const { balance: usdcBalance, refetch: refetchBalance } = useActiveUsdcBalance();
   const { user } = useAuth();
   const router = useRouter();
 
   const [cryptoAmount, setCryptoAmount] = useState("");
   const [phoneOrAccount, setPhoneOrAccount] = useState("");
   const [reason, setReason] = useState("");
-  const [isSwapping, setIsSwapping] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [txState, setTxState] = useState<TxOverlayState>({ phase: "idle" });
+
+  const resetModal = () => {
+    setTxState({ phase: "idle" });
+    setCryptoAmount("");
+    setPhoneOrAccount("");
+    setReason("");
+  };
+
+  const isSwapping = txState.phase !== "idle";
 
   // Dynamic rates
   const rate = conversionRates["USDC"]?.["KSH"] || 129.50;
@@ -140,13 +258,12 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
       return;
     }
     if (activeWallet === "external") {
-      setError("Off-ramp from external wallets requires sending on-chain tx. Please switch to your embedded OBYX Wallet for gasless off-ramp.");
+      setTxState({ phase: "error", message: "Off-ramp from external wallets requires sending on-chain tx. Please switch to your embedded OBYX Wallet for gasless off-ramp." });
       return;
     }
     if (!circleAddress) return;
 
-    setIsSwapping(true);
-    setError(null);
+    setTxState({ phase: "executing", message: `Sending ${cryptoAmount} USDC to M-Pesa...` });
     try {
       const usdcAmt = parseFloat(cryptoAmount);
       if (!usdcAmt || usdcAmt <= 0) throw new Error("Enter a valid amount");
@@ -159,12 +276,14 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
         txHash: gaslessResult.txHash,
       });
 
-      setResult(gaslessResult);
+      setTxState({
+        phase: "success",
+        summary: `${usdcAmt.toFixed(2)} USDC → KES ${cashAmount}`,
+        txHash: gaslessResult.txHash,
+      });
       refreshTransactions();
     } catch (err: any) {
-      setError(err.message || "Swap failed");
-    } finally {
-      setIsSwapping(false);
+      setTxState({ phase: "error", message: err.message || "Swap failed" });
     }
   };
 
@@ -176,8 +295,15 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="w-full max-w-[440px] rounded-[24px] sm:rounded-3xl bg-[#13121C] border border-white/[0.05] shadow-2xl overflow-hidden flex flex-col"
+        className="w-full max-w-[440px] rounded-[24px] sm:rounded-3xl bg-[#13121C] border border-white/[0.05] shadow-2xl overflow-hidden flex flex-col relative"
       >
+        <TransactionOverlay 
+          state={txState} 
+          onDone={() => { resetModal(); onClose(); refetchBalance(); }} 
+          onRetry={() => setTxState({ phase: "idle" })}
+          onClose={() => { resetModal(); onClose(); }}
+        />
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/[0.05]">
           <div className="flex items-center gap-2 text-white/70">
@@ -283,16 +409,7 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
             </div>
 
             {/* Error & Result */}
-            {error && (
-              <div className="text-xs text-danger flex items-center gap-2 p-3 bg-danger/10 rounded-xl">
-                <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
-              </div>
-            )}
-            {result && (
-              <div className="text-xs text-success flex items-center gap-2 p-3 bg-success/10 rounded-xl">
-                Swap successful! Tx: {result.txHash?.slice(0, 8)}...
-              </div>
-            )}
+            {/* Removed inline error/result display - handled by TransactionOverlay */}
 
             <button
               onClick={handleSwap}
@@ -312,16 +429,22 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
   const { userPhone, setUserPhone, isConnected, activeWallet, activeWalletAddress, circleAddress } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
-  const { balance: usdcBalance } = useActiveUsdcBalance();
+  const { balance: usdcBalance, refetch: refetchBalance } = useActiveUsdcBalance();
   const { user } = useAuth();
   const router = useRouter();
 
   const [cashAmount, setCashAmount] = useState("");
   const [phone, setPhone] = useState(userPhone || "+254");
   const [reason, setReason] = useState("");
-  const [isSwapping, setIsSwapping] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [txState, setTxState] = useState<TxOverlayState>({ phase: "idle" });
+
+  const resetModal = () => {
+    setTxState({ phase: "idle" });
+    setCashAmount("");
+    setReason("");
+  };
+
+  const isSwapping = txState.phase !== "idle";
 
   const rate = conversionRates["USDC"]?.["KSH"] || 129.50;
 
@@ -349,25 +472,26 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
     if (activeWallet === "embedded" && !circleAddress) return;
     if (activeWallet === "external" && !activeWalletAddress) return;
 
-    setIsSwapping(true);
-    setError(null);
+    setTxState({ phase: "executing", message: `Initiating STK push for KES ${cashAmount}...` });
     try {
       const fiatAmt = parseFloat(cashAmount);
       if (!fiatAmt || fiatAmt <= 0) throw new Error("Enter a valid amount");
 
-      const res = await OnrampService.postOnrampInit({
+      await OnrampService.postOnrampInit({
         fiatAmount: fiatAmt,
         phoneNumber: phone,
         walletAddress: activeWalletAddress || undefined,
       } as any);
 
-      setResult({ msg: "Check your phone to complete the payments." });
+      setTxState({
+        phase: "success",
+        summary: `KES ${cashAmount} → ${cryptoAmount} USDC`,
+        resultMsg: "Check your phone to complete the payment."
+      });
       refreshTransactions();
       if (!userPhone) setUserPhone(phone);
     } catch (err: any) {
-      setError(err.message || "Swap failed");
-    } finally {
-      setIsSwapping(false);
+      setTxState({ phase: "error", message: err.message || "Swap failed" });
     }
   };
 
@@ -379,8 +503,15 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="w-full max-w-[440px] rounded-[24px] sm:rounded-3xl bg-[#13121C] border border-white/[0.05] shadow-2xl overflow-hidden flex flex-col"
+        className="w-full max-w-[440px] rounded-[24px] sm:rounded-3xl bg-[#13121C] border border-white/[0.05] shadow-2xl overflow-hidden flex flex-col relative"
       >
+        <TransactionOverlay 
+          state={txState} 
+          onDone={() => { resetModal(); onClose(); refetchBalance(); }} 
+          onRetry={() => setTxState({ phase: "idle" })}
+          onClose={() => { resetModal(); onClose(); }}
+        />
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/[0.05]">
           <div className="flex items-center gap-2 text-white/70">
@@ -480,16 +611,7 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
             </div>
 
             {/* Error & Result */}
-            {error && (
-              <div className="text-xs text-danger flex items-center gap-2 p-3 bg-danger/10 rounded-xl">
-                <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
-              </div>
-            )}
-            {result && (
-              <div className="text-xs text-success flex items-center gap-2 p-3 bg-success/10 rounded-xl">
-                {result.msg}
-              </div>
-            )}
+            {/* Removed inline error/result display - handled by TransactionOverlay */}
 
             <button
               onClick={handleSwap}
@@ -510,16 +632,22 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const { sendGaslessSwap, isConnected, activeWallet, activeWalletAddress, circleAddress } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
-  const { balance: usdcBalance } = useActiveUsdcBalance();
+  const { balance: usdcBalance, refetch: refetchBalance } = useActiveUsdcBalance();
   const { user } = useAuth();
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<"send" | "receive">("send");
   const [recipient, setRecipient] = useState("");
   const [cryptoAmount, setCryptoAmount] = useState("");
-  const [isSwapping, setIsSwapping] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [txState, setTxState] = useState<TxOverlayState>({ phase: "idle" });
+
+  const resetModal = () => {
+    setTxState({ phase: "idle" });
+    setRecipient("");
+    setCryptoAmount("");
+  };
+
+  const isSwapping = txState.phase !== "idle";
 
   const rate = conversionRates["USDC"]?.["KSH"] || 129.50;
 
@@ -539,16 +667,15 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       return;
     }
     if (activeWallet === "external") {
-      setError("Gasless peer-to-peer transfers are currently supported on embedded wallets only.");
+      setTxState({ phase: "error", message: "Gasless peer-to-peer transfers are currently supported on embedded wallets only." });
       return;
     }
     if (activeWallet === "embedded" && !circleAddress) return;
     if (!recipient) {
-      setError("Please enter a valid recipient address");
+      setTxState({ phase: "error", message: "Please enter a valid recipient address" });
       return;
     }
-    setIsSwapping(true);
-    setError(null);
+    setTxState({ phase: "executing", message: `Transferring ${cryptoAmount} USDC...` });
     try {
       const usdcAmt = parseFloat(cryptoAmount);
       if (!usdcAmt || usdcAmt <= 0) throw new Error("Enter a valid amount");
@@ -556,12 +683,14 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       // Gasless transfer to the specified recipient
       const gaslessResult = await sendGaslessSwap(recipient, usdcAmt);
 
-      setResult(gaslessResult);
+      setTxState({
+        phase: "success",
+        summary: `Sent ${usdcAmt.toFixed(2)} USDC`,
+        txHash: gaslessResult.txHash,
+      });
       refreshTransactions();
     } catch (err: any) {
-      setError(err.message || "Transfer failed");
-    } finally {
-      setIsSwapping(false);
+      setTxState({ phase: "error", message: err.message || "Transfer failed" });
     }
   };
 
@@ -573,8 +702,15 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="w-full max-w-[480px] rounded-[24px] sm:rounded-3xl bg-[#13121C] border border-white/[0.05] shadow-2xl overflow-hidden flex flex-col"
+        className="w-full max-w-[480px] rounded-[24px] sm:rounded-3xl bg-[#13121C] border border-white/[0.05] shadow-2xl overflow-hidden flex flex-col relative"
       >
+        <TransactionOverlay 
+          state={txState} 
+          onDone={() => { resetModal(); onClose(); refetchBalance(); }} 
+          onRetry={() => setTxState({ phase: "idle" })}
+          onClose={() => { resetModal(); onClose(); }}
+        />
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5">
           <div className="flex items-center gap-3 text-white">
@@ -706,16 +842,7 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 </div>
 
                 {/* Error & Result */}
-                {error && (
-                  <div className="text-xs text-danger flex items-center gap-2 p-3 bg-danger/10 rounded-xl">
-                    <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
-                  </div>
-                )}
-                {result && (
-                  <div className="text-xs text-success flex items-center gap-2 p-3 bg-success/10 rounded-xl">
-                    Transfer successful! Tx: {result.txHash?.slice(0, 8)}...
-                  </div>
-                )}
+                {/* Removed inline error/result display - handled by TransactionOverlay */}
 
                 <button
                   onClick={handleSend}
