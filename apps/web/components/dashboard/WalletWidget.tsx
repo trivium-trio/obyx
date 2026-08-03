@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Wallet,
@@ -13,10 +13,11 @@ import {
   Shield,
   ExternalLink,
   Zap,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWallet } from "@/lib/WalletContext";
-import { useDynamicContext, useDynamicModals, DynamicWidget, useUserWallets } from "@dynamic-labs/sdk-react-core";
+import { useDynamicContext, useDynamicModals, DynamicWidget, DynamicContext, useUserWallets } from "@dynamic-labs/sdk-react-core";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 
@@ -37,13 +38,15 @@ export function WalletWidget() {
     provisionObyxWallet,
   } = useWallet();
 
-  const { primaryWallet, setShowAuthFlow, setPrimaryWallet } = useDynamicContext();
+  const { primaryWallet, setShowAuthFlow } = useDynamicContext();
+  const { setPrimaryWallet } = useContext(DynamicContext) as any;
   const { setShowLinkNewWalletModal } = useDynamicModals();
   const userWallets = useUserWallets();
   const { user } = useAuth();
   const router = useRouter();
 
   const [showSwitchModal, setShowSwitchModal] = useState(false);
+  const [switchingWalletId, setSwitchingWalletId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -254,12 +257,22 @@ export function WalletWidget() {
               {/* External EOA Wallets (Multi-wallet support) */}
               {userWallets.map((wallet) => {
                 const isActive = activeWallet === "external" && wallet.address === walletAddress;
+                const isSwitching = switchingWalletId === wallet.id;
+                
                 return (
                   <button
                     key={wallet.id}
-                    onClick={() => {
+                    disabled={isSwitching}
+                    onClick={async () => {
                       if (wallet.address !== walletAddress) {
-                        setPrimaryWallet(wallet.id);
+                        try {
+                          setSwitchingWalletId(wallet.id);
+                          await setPrimaryWallet(wallet.id);
+                        } catch (err) {
+                          console.error("Failed to switch primary wallet", err);
+                        } finally {
+                          setSwitchingWalletId(null);
+                        }
                       }
                       setActiveWallet("external");
                       setShowSwitchModal(false);
@@ -268,7 +281,8 @@ export function WalletWidget() {
                       "flex items-center gap-3 w-full rounded-xl p-3 text-left transition-all duration-200",
                       isActive
                         ? "bg-info/10 border border-info/25"
-                        : "bg-surface-800/50 border border-white/[0.06] hover:bg-surface-800 hover:border-white/[0.1]"
+                        : "bg-surface-800/50 border border-white/[0.06] hover:bg-surface-800 hover:border-white/[0.1]",
+                      isSwitching && "opacity-75 cursor-not-allowed"
                     )}
                   >
                     {/* Icon */}
@@ -291,10 +305,12 @@ export function WalletWidget() {
                       </span>
                     </div>
 
-                    {/* Checkmark */}
-                    {isActive && (
+                    {/* Checkmark or Spinner */}
+                    {isSwitching ? (
+                      <Loader2 className="h-4 w-4 text-info animate-spin shrink-0" />
+                    ) : isActive ? (
                       <Check className="h-4 w-4 text-info shrink-0" />
-                    )}
+                    ) : null}
                   </button>
                 );
               })}

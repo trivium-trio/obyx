@@ -62,7 +62,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [circleAddress, setCircleAddress] = useState<string | null>(null);
   
-  const [activeWallet, setActiveWallet] = useState<ActiveWalletType>('embedded');
+  const [activeWallet, setActiveWallet] = useState<ActiveWalletType>('external');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -150,7 +150,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
 
     const addr = primaryWallet.address;
-    setWalletAddress(addr);
+    
+    // If the primary EOA changed, ensure the UI switches to it
+    setWalletAddress((prev) => {
+      if (prev !== addr) {
+        setActiveWallet('external');
+      }
+      return addr;
+    });
 
     // Fetch profile for existing phone number
     UserService.getUserProfile().then((profile) => {
