@@ -37,7 +37,7 @@ export function WalletWidget() {
     provisionObyxWallet,
   } = useWallet();
 
-  const { primaryWallet, setShowAuthFlow } = useDynamicContext();
+  const { primaryWallet, setShowAuthFlow, setPrimaryWallet } = useDynamicContext();
   const { setShowLinkNewWalletModal } = useDynamicModals();
   const userWallets = useUserWallets();
   const { user } = useAuth();
@@ -263,7 +263,7 @@ export function WalletWidget() {
                     key={wallet.id}
                     onClick={() => {
                       if (wallet.address !== walletAddress) {
-                        wallet.connector.setPrimaryWallet();
+                        setPrimaryWallet(wallet.id);
                       }
                       setActiveWallet("external");
                       setShowSwitchModal(false);
@@ -348,58 +348,75 @@ function ConnectWalletModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
 
   if (!isOpen) return null;
 
+  const handleExternal = () => {
+    onClose();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('obyx_active_wallet', 'external');
+    }
+    setShowAuthFlow(true);
+  };
+
+  const handleEmbedded = () => {
+    onClose();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('obyx_auto_provision', 'true');
+      localStorage.setItem('obyx_active_wallet', 'embedded');
+    }
+    // Opens the Dynamic connector — user picks MetaMask/Coinbase/etc.
+    // Once the EOA connects, WalletContext auto-provisions the SCA.
+    setShowAuthFlow(true);
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-md rounded-3xl bg-surface-900 border border-white/[0.05] shadow-2xl p-6 relative"
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 16 }}
+        transition={{ duration: 0.2 }}
+        className="w-full max-w-md rounded-3xl bg-surface-900 border border-white/[0.05] shadow-2xl overflow-hidden relative"
       >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-white">Connect Wallet</h3>
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 pb-2">
+          <div>
+            <h3 className="text-xl font-bold text-white">Connect Wallet</h3>
+            <p className="text-xs text-white/40 mt-1">Choose how you want to interact with OBYX</p>
+          </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-white/[0.05] transition-colors text-white/40">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div className="p-6 pt-4 space-y-3">
+          {/* External Wallet Option */}
           <button
-            onClick={() => {
-              onClose();
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('obyx_active_wallet', 'external');
-              }
-              setShowAuthFlow(true);
-            }}
-            className="w-full flex items-center gap-4 p-4 rounded-xl bg-surface-800/50 border border-white/[0.06] hover:bg-surface-800 transition-colors text-left group"
+            onClick={handleExternal}
+            className="w-full flex items-center gap-4 p-4 rounded-xl bg-surface-800/50 border border-white/[0.06] hover:bg-surface-800 hover:border-white/[0.12] transition-all duration-200 text-left group"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-info/15 border border-info/20 group-hover:scale-105 transition-transform">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-info/15 border border-info/20 group-hover:scale-105 transition-transform">
               <ExternalLink className="h-5 w-5 text-info" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <div className="text-base font-semibold text-white">External Wallet</div>
-              <div className="text-sm text-white/40">Use your browser wallet (MetaMask, Coinbase, etc.)</div>
+              <div className="text-sm text-white/40">MetaMask, Coinbase Wallet, WalletConnect…</div>
             </div>
           </button>
 
+          {/* Embedded / OBYX Smart Account Option */}
           <button
-            onClick={() => {
-              onClose();
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('obyx_auto_provision', 'true');
-                localStorage.setItem('obyx_active_wallet', 'embedded');
-              }
-              setShowAuthFlow(true);
-            }}
-            className="w-full flex items-center gap-4 p-4 rounded-xl bg-neon-orange/10 border border-neon-orange/20 hover:bg-neon-orange/15 transition-colors text-left group"
+            onClick={handleEmbedded}
+            className="w-full flex items-start gap-4 p-4 rounded-xl bg-neon-orange/[0.06] border border-neon-orange/15 hover:bg-neon-orange/10 hover:border-neon-orange/25 transition-all duration-200 text-left group"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neon-orange/15 border border-neon-orange/20 group-hover:scale-105 transition-transform">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-neon-orange/15 border border-neon-orange/20 group-hover:scale-105 transition-transform mt-0.5">
               <Zap className="h-5 w-5 text-neon-orange" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <div className="text-base font-semibold text-white">OBYX Smart Account</div>
-              <div className="text-sm text-white/40">Gasless transactions & embedded experience</div>
+              <div className="text-sm text-white/40 mb-2">Gasless transactions & embedded experience</div>
+              <div className="flex items-start gap-2 text-xs text-white/30 bg-white/[0.03] rounded-lg p-2.5 border border-white/[0.04]">
+                <Shield className="h-3.5 w-3.5 text-neon-orange/60 shrink-0 mt-0.5" />
+                <span>You'll first connect an external wallet (e.g. MetaMask), then your OBYX Smart Account will be created automatically on top of it.</span>
+              </div>
             </div>
           </button>
         </div>
