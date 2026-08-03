@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { wagmiConfig } from "@/lib/wagmi";
 import { WalletProvider } from "@/lib/WalletContext";
 import { TransactionHistoryProvider } from "@/lib/TransactionHistoryContext";
+import { useAuth } from "@/lib/AuthContext";
 import type { ReactNode } from "react";
 
 const DYNAMIC_ENV_ID = (process.env.NEXT_PUBLIC_DYNAMIC_ENV_ID || "placeholder-env-id") as string;
@@ -22,6 +23,8 @@ const queryClient = new QueryClient();
  * NOTE: This does NOT handle auth — Supabase AuthProvider wraps this component.
  */
 export function DynamicProviderWrapper({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+
   return (
     <DynamicContextProvider
       settings={{
@@ -29,6 +32,8 @@ export function DynamicProviderWrapper({ children }: { children: ReactNode }) {
         walletConnectors: [EthereumWalletConnectors],
         // Wallet-only mode — no email/social auth flows
         walletConnectPreferredChains: ["eip155:84532"], // Base Sepolia chain ID
+        initialAuthenticationMode: "connect-only",
+        userProfile: user ? { email: user.email } : undefined,
       }}
     >
       <WagmiProvider config={wagmiConfig}>

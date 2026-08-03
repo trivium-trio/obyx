@@ -33,6 +33,8 @@ interface WalletContextType {
   activeWallet: ActiveWalletType;
   /** Switch between embedded (Circle SA) and external (EOA) wallet */
   setActiveWallet: (type: ActiveWalletType) => void;
+  /** Provision Circle Smart Account for the active EOA */
+  provisionObyxWallet: () => Promise<void>;
   /** User M-Pesa phone number on file */
   userPhone: string | null;
   /** Set user phone number locally */
@@ -59,7 +61,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [circleAddress, setCircleAddress] = useState<string | null>(null);
+  
   const [activeWallet, setActiveWallet] = useState<ActiveWalletType>('embedded');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('obyx_active_wallet') as ActiveWalletType;
+      if (stored === 'embedded' || stored === 'external') {
+        setActiveWallet(stored);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('obyx_active_wallet', activeWallet);
+    }
+  }, [activeWallet]);
   const [userPhone, setUserPhone] = useState<string | null>(null);
   const [isInitializingCircle, setIsInitializingCircle] = useState(false);
   const [circleError, setCircleError] = useState<string | null>(null);
@@ -72,6 +90,52 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Compute the active wallet address based on user selection
   const activeWalletAddress = activeWallet === 'embedded' ? circleAddress : walletAddress;
+
+  // ── Explicit Circle Smart Account Provisioning ──
+  const provisionObyxWallet = useCallback(async () => {
+    if (!primaryWallet || !walletAddress) return;
+    setIsInitializingCircle(true);
+    setCircleError(null);
+    try {
+      let walletClient: any;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          walletClient = await (primaryWallet.connector as any).getWalletClient();
+          if (walletClient) break;
+        } catch (e: any) {
+          if (attempt === 4) throw e;
+          await new Promise((r) => setTimeout(r, 600));
+        }
+      }
+
+      if (!walletClient.account) {
+        walletClient.account = {
+          address: walletAddress as `0x${string}`,
+          type: "json-rpc",
+        };
+      }
+
+      const smartAccount = await initCircleSmartAccount(walletClient as any, walletAddress);
+      const bundlerClient = createCircleBundlerClient(smartAccount);
+
+      bundlerClientRef.current = bundlerClient;
+      setCircleAddress(smartAccount.address);
+      setActiveWallet("embedded");
+
+      try {
+        const res = await UserService.postUserLinkWallet({ walletAddress: smartAccount.address });
+        setUserPhone(res.phoneNumber ?? null);
+        console.log("[WALLET] Linked embedded wallet to backend:", smartAccount.address);
+      } catch (linkErr) {
+        console.warn("[WALLET] Failed to link embedded wallet (non-fatal):", linkErr);
+      }
+    } catch (err: any) {
+      console.error("Circle Smart Account explicit init failed:", err);
+      setCircleError(err instanceof Error ? err.message : "Failed to initialize OBYX Wallet");
+    } finally {
+      setIsInitializingCircle(false);
+    }
+  }, [primaryWallet, walletAddress]);
 
   // ── Initialize Circle Smart Account & fetch profile when wallet connects ──
   useEffect(() => {
@@ -94,57 +158,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setUserPhone(profile.phoneNumber);
       }
     });
+  }, [primaryWallet]);
 
-    if (initAttemptedForRef.current === addr) return;
-    initAttemptedForRef.current = addr;
-
-    async function initCircle() {
-      setIsInitializingCircle(true);
-      setCircleError(null);
-      try {
-        let walletClient: any;
-        for (let attempt = 0; attempt < 5; attempt++) {
-          try {
-            walletClient = await (primaryWallet!.connector as any).getWalletClient();
-            if (walletClient) break;
-          } catch (e: any) {
-            if (attempt === 4) throw e;
-            await new Promise((r) => setTimeout(r, 600));
-          }
-        }
-
-        if (!walletClient.account) {
-          walletClient.account = {
-            address: addr as `0x${string}`,
-            type: "json-rpc",
-          };
-        }
-
-        const smartAccount = await initCircleSmartAccount(walletClient as any, addr);
-        const bundlerClient = createCircleBundlerClient(smartAccount);
-
-        bundlerClientRef.current = bundlerClient;
-        setCircleAddress(smartAccount.address);
-
-        try {
-          const res = await UserService.postUserLinkWallet({ walletAddress: addr });
-          setUserPhone(res.phoneNumber ?? null);
-          console.log("[WALLET] Linked wallet to backend (EOA):", addr);
-        } catch (linkErr) {
-          console.warn("[WALLET] Failed to link wallet (non-fatal):", linkErr);
-        }
-      } catch (err) {
-        console.error("Circle Smart Account init failed:", err);
-        setCircleError(
-          err instanceof Error ? err.message : "Failed to initialize Circle Smart Account"
-        );
-      } finally {
-        setIsInitializingCircle(false);
+  // ── Auto-provision SCA if requested before connection ──
+  useEffect(() => {
+    if (primaryWallet && walletAddress && !circleAddress && !isInitializingCircle) {
+      if (typeof window !== 'undefined' && localStorage.getItem('obyx_auto_provision') === 'true') {
+        localStorage.removeItem('obyx_auto_provision');
+        provisionObyxWallet();
       }
     }
-
-    initCircle();
-  }, [primaryWallet]);
+  }, [primaryWallet, walletAddress, circleAddress, isInitializingCircle, provisionObyxWallet]);
 
   // ── Send gasless USDC transfer ──
   const sendGaslessSwap = useCallback(
@@ -182,6 +206,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setCircleError(null);
     bundlerClientRef.current = null;
     initAttemptedForRef.current = null;
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('obyx_active_wallet');
+    }
     // Clear Dynamic Labs cached wallet state from localStorage
     if (typeof window !== 'undefined') {
       Object.keys(localStorage).forEach((key) => {
@@ -205,6 +232,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         activeWalletAddress,
         activeWallet,
         setActiveWallet,
+        provisionObyxWallet,
         userPhone,
         setUserPhone,
         isConnected,

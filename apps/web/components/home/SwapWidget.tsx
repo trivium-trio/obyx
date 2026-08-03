@@ -28,6 +28,8 @@ import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useReadContract } from "wagmi";
 import { OnrampService, OfframpService } from "@/lib/api/client";
 import { useTransactionHistory } from "@/lib/TransactionHistoryContext";
+import { useAuth } from "@/lib/AuthContext";
+import { useRouter } from "next/navigation";
 
 // USDC contract on Base Sepolia (Circle official)
 const BASE_SEPOLIA_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
@@ -103,6 +105,8 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
   const { balance: usdcBalance } = useActiveUsdcBalance();
+  const { user } = useAuth();
+  const router = useRouter();
 
   const [cryptoAmount, setCryptoAmount] = useState("");
   const [phoneOrAccount, setPhoneOrAccount] = useState("");
@@ -127,6 +131,10 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
   }, [cryptoAmount, rate, fee]);
 
   const handleSwap = async () => {
+    if (!user) {
+      router.push("/auth/signup");
+      return;
+    }
     if (!isConnected) {
       setShowAuthFlow(true);
       return;
@@ -305,6 +313,8 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
   const { balance: usdcBalance } = useActiveUsdcBalance();
+  const { user } = useAuth();
+  const router = useRouter();
 
   const [cashAmount, setCashAmount] = useState("");
   const [phone, setPhone] = useState(userPhone || "+254");
@@ -328,6 +338,10 @@ function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
   }, [cashAmount, rate, fee]);
 
   const handleSwap = async () => {
+    if (!user) {
+      router.push("/auth/signup");
+      return;
+    }
     if (!isConnected) {
       setShowAuthFlow(true);
       return;
@@ -497,6 +511,8 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
   const { balance: usdcBalance } = useActiveUsdcBalance();
+  const { user } = useAuth();
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<"send" | "receive">("send");
   const [recipient, setRecipient] = useState("");
@@ -514,6 +530,10 @@ function WalletTransferModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   }, [cryptoAmount, rate]);
 
   const handleSend = async () => {
+    if (!user) {
+      router.push("/auth/signup");
+      return;
+    }
     if (!isConnected) {
       setShowAuthFlow(true);
       return;
