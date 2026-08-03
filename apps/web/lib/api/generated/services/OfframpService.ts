@@ -30,6 +30,7 @@ export class OfframpService {
             fiatAmount?: number;
             exchangeRate?: number;
             status?: string;
+            treasuryAddress?: string;
         };
     }> {
         return __request(OpenAPI, {

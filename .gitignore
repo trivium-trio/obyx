@@ -25,3 +25,5 @@ build/
 repomix-output.xml
 .vercel
 .env*
+
+package-lock.json

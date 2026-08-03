@@ -99,7 +99,7 @@ const WXMIcon = ({ className }: { className?: string }) => (
 // ════════════════════════════════════════════════════════
 
 function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { circleAddress, sendGaslessSwap, isConnected, activeWallet } = useWallet();
+  const { circleAddress, sendGaslessSwap, isConnected, activeWallet, setActiveWallet } = useWallet();
   const { refreshTransactions } = useTransactionHistory();
   const { setShowAuthFlow } = useDynamicContext();
   const { balance: usdcBalance } = useActiveUsdcBalance();
@@ -108,6 +108,9 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
   const [phoneOrAccount, setPhoneOrAccount] = useState("");
   const [reason, setReason] = useState("");
   const [isSwapping, setIsSwapping] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingAmount, setPendingAmount] = useState<number | null>(null);
+  const [isProceeding, setIsProceeding] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -126,37 +129,78 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
     return calc > 0 ? calc.toFixed(2) : "0.00";
   }, [cryptoAmount, rate, fee]);
 
+  const previewAmount = useMemo(() => {
+    const amt = parseFloat(cryptoAmount) || 0;
+    return amt > 0 ? amt : 0;
+  }, [cryptoAmount]);
+
+  const pendingFee = useMemo(() => {
+    return pendingAmount ? Number((pendingAmount * rate * 0.005).toFixed(2)) : 0;
+  }, [pendingAmount, rate]);
+
+  const pendingCash = useMemo(() => {
+    return pendingAmount ? Number((pendingAmount * rate - pendingAmount * rate * 0.005).toFixed(2)) : 0;
+  }, [pendingAmount, rate]);
+
   const handleSwap = async () => {
     if (!isConnected) {
       setShowAuthFlow(true);
       return;
     }
-    if (activeWallet === "external") {
-      setError("Off-ramp from external wallets requires sending on-chain tx. Please switch to your embedded OBYX Wallet for gasless off-ramp.");
+    if (activeWallet !== "embedded") {
+      setError("Off-ramp from external wallets requires your embedded OBYX wallet. Switch to OBYX wallet to proceed.");
       return;
     }
-    if (!circleAddress) return;
+    if (!circleAddress) {
+      setError("Your embedded OBYX wallet is still initializing. Please wait a moment.");
+      return;
+    }
 
-    setIsSwapping(true);
+    const usdcAmt = parseFloat(cryptoAmount);
+    if (!usdcAmt || usdcAmt <= 0) {
+      setError("Enter a valid amount");
+      return;
+    }
+    if (usdcAmt > usdcBalance) {
+      setError("Amount exceeds your USDC balance.");
+      return;
+    }
+
+    setError(null);
+    setPendingAmount(usdcAmt);
+    setShowConfirmModal(true);
+  };
+
+  const executeOfframp = async () => {
+    if (pendingAmount == null) return;
+
+    setIsProceeding(true);
     setError(null);
     try {
-      const usdcAmt = parseFloat(cryptoAmount);
-      if (!usdcAmt || usdcAmt <= 0) throw new Error("Enter a valid amount");
+      const res = await OfframpService.postOfframpInit({ usdcAmount: pendingAmount });
+      const treasuryAddress = res.data?.treasuryAddress as string | undefined;
+      const transactionId = res.data?.transactionId as string | undefined;
 
-      const res = await OfframpService.postOfframpInit({ usdcAmount: usdcAmt });
-      const gaslessResult = await sendGaslessSwap(circleAddress, usdcAmt);
+      if (!treasuryAddress || !transactionId) {
+        throw new Error("Failed to initialize offramp. Please try again.");
+      }
+
+      const gaslessResult = await sendGaslessSwap(treasuryAddress, pendingAmount);
 
       await OfframpService.postOfframpConfirm({
-        transactionId: res.data!.transactionId as string,
+        transactionId,
         txHash: gaslessResult.txHash,
       });
 
       setResult(gaslessResult);
       refreshTransactions();
+      setShowConfirmModal(false);
+      setPendingAmount(null);
+      setCryptoAmount("");
     } catch (err: any) {
       setError(err.message || "Swap failed");
     } finally {
-      setIsSwapping(false);
+      setIsProceeding(false);
     }
   };
 
@@ -187,6 +231,20 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
           <h2 className="text-lg sm:text-xl font-bold text-white text-center mb-5 sm:mb-6">Swap to Cash</h2>
 
           <div className="space-y-4 sm:space-y-5">
+            {activeWallet !== "embedded" && (
+              <div className="rounded-3xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+                <p className="font-semibold">Embedded OBYX wallet required for gasless off-ramp</p>
+                <p className="mt-2 text-white/80">
+                  Your current wallet is external. Switch to your embedded OBYX wallet to send USDC to the treasury without gas.
+                </p>
+                <button
+                  onClick={() => setActiveWallet("embedded")}
+                  className="mt-3 inline-flex items-center rounded-lg bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-500/20 transition-colors"
+                >
+                  Switch to OBYX Wallet
+                </button>
+              </div>
+            )}
             {/* Account Input */}
             <div>
               <label className="text-xs text-white/50 mb-2 block">Phone number / Account Number</label>
@@ -288,14 +346,89 @@ function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
 
             <button
               onClick={handleSwap}
-              disabled={isSwapping || !cryptoAmount}
+              disabled={isProceeding || !cryptoAmount || activeWallet !== "embedded" || !circleAddress}
               className="w-full py-3.5 sm:py-4 rounded-xl bg-neon-orange hover:bg-neon-amber text-white font-semibold transition-colors flex items-center justify-center disabled:opacity-50 text-sm sm:text-base"
             >
-              {isSwapping ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm Payment"}
+              {isProceeding ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm Payment"}
             </button>
           </div>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {showConfirmModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 20, opacity: 0, scale: 0.98 }}
+              className="w-full max-w-md rounded-[28px] bg-[#0F1722] border border-white/[0.08] shadow-2xl p-6"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.32em] text-white/40">Confirm Off-ramp</p>
+                  <h3 className="mt-3 text-2xl font-bold text-white">Send USDC to Treasury</h3>
+                </div>
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="rounded-full border border-white/[0.08] p-2 text-white/60 hover:text-white hover:border-white/20 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mt-6 space-y-4 text-sm text-white/80">
+                <div className="rounded-3xl bg-white/[0.04] p-4">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-white/50">Transaction summary</p>
+                  <div className="mt-3 space-y-3">
+                    <div className="flex justify-between text-white/80">
+                      <span>USDC amount</span>
+                      <span>{pendingAmount?.toFixed(6) ?? "0.000000"} USDC</span>
+                    </div>
+                    <div className="flex justify-between text-white/80">
+                      <span>Expected cash</span>
+                      <span>KES {pendingCash.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-white/80">
+                      <span>Estimated fee</span>
+                      <span>KES {pendingFee.toFixed(2)}</span>
+                    </div>
+                    <div className="rounded-2xl border border-white/[0.08] bg-[#13121C] p-3 text-white/80">
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-white/50 mb-2">Destination</p>
+                      <p>OBYX Treasury Wallet</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl bg-white/[0.04] p-4 text-sm leading-6">
+                  <p className="text-white">You are about to send USDC from your embedded OBYX wallet directly to the treasury address returned by the backend. This confirms the pre-flight database transaction before on-chain settlement.</p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="w-full rounded-xl border border-white/[0.08] bg-white/5 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/[0.08]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeOfframp}
+                  disabled={isProceeding}
+                  className="w-full rounded-xl bg-neon-orange px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-neon-amber disabled:opacity-50"
+                >
+                  {isProceeding ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Proceed and Send"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

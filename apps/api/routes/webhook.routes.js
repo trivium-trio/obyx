@@ -1,7 +1,8 @@
 // PAYSTACK WEBHOOK HANDLER
 import { Router } from 'express';
-import { Transaction, User } from '../models/index.js';
-import { sendUSDC } from '../services/circle.service.js';
+import { Transaction } from '../models/index.js';
+import { executeOfframpPayout } from '../services/paystack.service.js';
+import config from '../config/env.js';
 import verifyPaystackWebhook from '../middleware/verifyPaystackWebhook.js';
 
 const router = Router();
@@ -109,6 +110,58 @@ router.post('/circle', async (req, res) => {
       } else if (state === 'FAILED') {
         await transaction.update({ status: 'FAILED' });
         console.error(`[CIRCLE_WEBHOOK] Transaction ${transaction.id} FAILED in Circle`);
+      }
+
+      return;
+    }
+
+    // Handle inbound deposit confirmation from Circle for funds received by Treasury.
+    if (event.notificationType === 'transactions.inbound' && event.transaction?.state === 'COMPLETE') {
+      const txHash = event.transaction.txHash;
+      const rawAmount = event.transaction.amounts?.[0];
+      const destination = (event.transaction.destinationAddress || event.transaction.destination || '').toLowerCase();
+      const receivedAmount = parseFloat(rawAmount);
+
+      if (!txHash || Number.isNaN(receivedAmount)) {
+        console.warn('[CIRCLE_WEBHOOK] Inbound event missing txHash or amount');
+        return;
+      }
+
+      const transaction = await Transaction.findOne({ where: { txHash, status: 'AWAITING_DEPOSIT' } });
+      if (!transaction) {
+        console.warn(`[CIRCLE_WEBHOOK] No awaiting transaction found for txHash ${txHash}`);
+        return;
+      }
+
+      const treasuryAddress = config.TREASURY_WALLET_ADDRESS.toLowerCase();
+      if (destination !== treasuryAddress) {
+        await transaction.update({
+          status: 'FAILED',
+          failureReason: `Unexpected inbound destination ${destination} (expected ${treasuryAddress})`
+        });
+        console.error(`[CIRCLE_WEBHOOK] Destination mismatch for tx ${transaction.id}: ${destination}`);
+        return;
+      }
+
+      const expectedAmount = parseFloat(transaction.cryptoAmount);
+      if (Math.abs(receivedAmount - expectedAmount) > 0.000001) {
+        await transaction.update({
+          status: 'FAILED',
+          failureReason: `Amount mismatch: received ${receivedAmount}, expected ${expectedAmount}`
+        });
+        console.error(`[CIRCLE_WEBHOOK] Amount mismatch for tx ${transaction.id}: received ${receivedAmount}, expected ${expectedAmount}`);
+        return;
+      }
+
+      console.log(`[CIRCLE_WEBHOOK] Verified inbound deposit for tx ${transaction.id}: ${receivedAmount} USDC to treasury`);
+      try {
+        await executeOfframpPayout(transaction);
+      } catch (error) {
+        console.error(`[CIRCLE_WEBHOOK] Payout failed for tx ${transaction.id}:`, error);
+        await transaction.update({
+          status: 'FAILED',
+          failureReason: `Paystack payout failed: ${error.message || 'unknown error'}`,
+        });
       }
     }
   } catch (err) {

@@ -75,7 +75,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // ── Initialize Circle Smart Account & fetch profile when wallet connects ──
   useEffect(() => {
+    console.log("[WALLET] useEffect primaryWallet changed. exists:", !!primaryWallet);
     if (!primaryWallet || !isEthereumWallet(primaryWallet)) {
+      console.log("[WALLET] No primary wallet or not Ethereum. Resetting wallet state.");
       setWalletAddress(null);
       setCircleAddress(null);
       setUserPhone(null);
@@ -86,16 +88,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
 
     const addr = primaryWallet.address;
+    console.log("[WALLET] Found wallet address:", addr);
     setWalletAddress(addr);
 
     // Fetch profile for existing phone number
     UserService.getUserProfile().then((profile) => {
+      console.log("[WALLET] getUserProfile profile fetched:", profile);
       if (profile?.phoneNumber) {
         setUserPhone(profile.phoneNumber);
       }
     });
 
-    if (initAttemptedForRef.current === addr) return;
+    if (initAttemptedForRef.current === addr) {
+      console.log("[WALLET] Circle smart account init already attempted for:", addr);
+      return;
+    }
     initAttemptedForRef.current = addr;
 
     async function initCircle() {
@@ -171,6 +178,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // ── Disconnect ──
   const disconnect = useCallback(async () => {
+    console.log("[WALLET] disconnect called explicitly");
     try {
       await handleLogOut();
     } catch {
