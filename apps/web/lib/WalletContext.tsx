@@ -18,6 +18,7 @@ import {
   USDC_DECIMALS,
 } from "@/lib/circle";
 import { UserService } from "@/lib/UserService";
+import type { WalletClient } from "viem";
 
 // ── Types ──
 type ActiveWalletType = 'embedded' | 'external';
@@ -68,6 +69,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('obyx_active_wallet') as ActiveWalletType;
       if (stored === 'embedded' || stored === 'external') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setActiveWallet(stored);
       }
     }
@@ -97,25 +99,27 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setIsInitializingCircle(true);
     setCircleError(null);
     try {
-      let walletClient: any;
+      let walletClient: WalletClient | undefined;
       for (let attempt = 0; attempt < 5; attempt++) {
         try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           walletClient = await (primaryWallet.connector as any).getWalletClient();
           if (walletClient) break;
-        } catch (e: any) {
+        } catch (e: unknown) {
           if (attempt === 4) throw e;
           await new Promise((r) => setTimeout(r, 600));
         }
       }
 
-      if (!walletClient.account) {
-        walletClient.account = {
+      if (!walletClient!.account) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (walletClient as any).account = {
           address: walletAddress as `0x${string}`,
           type: "json-rpc",
         };
       }
 
-      const smartAccount = await initCircleSmartAccount(walletClient as any, walletAddress);
+      const smartAccount = await initCircleSmartAccount(walletClient!, walletAddress);
       const bundlerClient = createCircleBundlerClient(smartAccount);
 
       bundlerClientRef.current = bundlerClient;
@@ -129,7 +133,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       } catch (linkErr) {
         console.warn("[WALLET] Failed to link embedded wallet (non-fatal):", linkErr);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Circle Smart Account explicit init failed:", err);
       setCircleError(err instanceof Error ? err.message : "Failed to initialize OBYX Wallet");
     } finally {
@@ -140,6 +144,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // ── Initialize Circle Smart Account & fetch profile when wallet connects ──
   useEffect(() => {
     if (!primaryWallet || !isEthereumWallet(primaryWallet)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWalletAddress(null);
       setCircleAddress(null);
       setUserPhone(null);
@@ -172,6 +177,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (primaryWallet && walletAddress && !circleAddress && !isInitializingCircle) {
       if (typeof window !== 'undefined' && localStorage.getItem('obyx_auto_provision') === 'true') {
         localStorage.removeItem('obyx_auto_provision');
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         provisionObyxWallet();
       }
     }
