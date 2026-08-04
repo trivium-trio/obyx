@@ -11,11 +11,11 @@ import {
 import { createPublicClient } from "viem";
 import { createBundlerClient } from "viem/account-abstraction";
 import { baseSepolia } from "viem/chains";
-import type { Account, WalletClient } from "viem";
+import type { Account, WalletClient, Transport, PublicClient } from "viem";
 import { toAccount } from "viem/accounts";
 
 // ── Environment ──
-let CLIENT_KEY = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_KEY || "placeholder-client-key";
+const CLIENT_KEY = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_KEY || "placeholder-client-key";
 let CLIENT_URL = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_URL || "https://modular-sdk.circle.com/v1/w3s";
 
 if (!CLIENT_URL.startsWith("http://") && !CLIENT_URL.startsWith("https://")) {
@@ -50,7 +50,7 @@ try {
 // ── Public Client ──
 export const circlePublicClient = createPublicClient({
   chain: baseSepolia,
-  transport: modularTransport as any,
+  transport: modularTransport as Transport,
 });
 
 /**
@@ -70,18 +70,18 @@ export function walletClientToOwner(walletClient: WalletClient, fallbackAddress?
   return toAccount({
     address,
     async signMessage({ message }) {
-      return walletClient.signMessage({ account: account as any, message });
+      return walletClient.signMessage({ account: account as Account, message });
     },
     async signTransaction(transaction) {
       return walletClient.signTransaction({
-        account: account as any,
+        account: account as Account,
         ...transaction,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
     },
     async signTypedData(typedData) {
       return walletClient.signTypedData({
-        account: account as any,
+        account: account as Account,
         ...typedData,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
@@ -96,7 +96,7 @@ export async function initCircleSmartAccount(walletClient: WalletClient, fallbac
   const owner = walletClientToOwner(walletClient, fallbackAddress);
 
   const smartAccount = await toCircleSmartAccount({
-    client: circlePublicClient as any,
+    client: circlePublicClient as PublicClient,
     owner,
   });
 
@@ -112,7 +112,7 @@ export function createCircleBundlerClient(
   return createBundlerClient({
     account: smartAccount,
     chain: baseSepolia,
-    transport: modularTransport as any,
+    transport: modularTransport as Transport,
   });
 }
 
