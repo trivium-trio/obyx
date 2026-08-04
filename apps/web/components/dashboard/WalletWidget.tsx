@@ -39,6 +39,7 @@ export function WalletWidget() {
   } = useWallet();
 
   const { primaryWallet, setShowAuthFlow } = useDynamicContext();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { setPrimaryWallet } = useContext(DynamicContext) as any;
   const { setShowLinkNewWalletModal } = useDynamicModals();
   const userWallets = useUserWallets();
