@@ -83,8 +83,8 @@ export default function SwapToCashModal({ isOpen, onClose }: { isOpen: boolean; 
         txHash: gaslessResult.txHash,
       });
       refreshTransactions();
-    } catch (err: any) {
-      setTxState({ phase: "error", message: err.message || "Swap failed" });
+    } catch (err: unknown) {
+      setTxState({ phase: "error", message: err instanceof Error ? err.message : "Swap failed" });
     }
   };
 
