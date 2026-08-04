@@ -68,6 +68,7 @@ export default function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean
         fiatAmount: fiatAmt,
         phoneNumber: phone,
         walletAddress: activeWalletAddress || undefined,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       setTxState({
@@ -77,8 +78,8 @@ export default function SwapToCryptoModal({ isOpen, onClose }: { isOpen: boolean
       });
       refreshTransactions();
       if (!userPhone) setUserPhone(phone);
-    } catch (err: any) {
-      setTxState({ phase: "error", message: err.message || "Swap failed" });
+    } catch (err: unknown) {
+      setTxState({ phase: "error", message: err instanceof Error ? err.message : "Swap failed" });
     }
   };
 
