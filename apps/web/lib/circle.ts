@@ -97,7 +97,8 @@ export async function initCircleSmartAccount(walletClient: WalletClient, fallbac
   const owner = walletClientToOwner(walletClient, fallbackAddress);
 
   const smartAccount = await toCircleSmartAccount({
-    client: circlePublicClient as PublicClient,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    client: circlePublicClient as any,
     owner,
   });
 
