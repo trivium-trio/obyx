@@ -8,7 +8,7 @@ import {
   toCircleSmartAccount,
   encodeTransfer,
 } from "@circle-fin/modular-wallets-core";
-import { createPublicClient } from "viem";
+import { createPublicClient, http } from "viem";
 import { createBundlerClient } from "viem/account-abstraction";
 import { baseSepolia } from "viem/chains";
 import type { Account, WalletClient, Transport, PublicClient } from "viem";
@@ -33,7 +33,7 @@ export const USDC_CONTRACT_ADDRESS =
   "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
 export const USDC_DECIMALS = 6;
 
-let modularTransport: ReturnType<typeof toModularTransport>;
+let circleRpcUrl = "https://modular-sdk.circle.com/v1/w3s/baseSepolia";
 try {
   let url = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_URL || "";
   if (!url || url.includes("[SENSITIVE]") || url.includes("***")) {
@@ -42,15 +42,16 @@ try {
     url = `https://${url}`;
   }
   new URL(url);
-  modularTransport = toModularTransport(`${url}/baseSepolia`, CLIENT_KEY);
+  circleRpcUrl = `${url}/baseSepolia`;
 } catch {
-  modularTransport = toModularTransport("https://modular-sdk.circle.com/v1/w3s/baseSepolia", "placeholder-key");
+  circleRpcUrl = "https://modular-sdk.circle.com/v1/w3s/baseSepolia";
 }
+const modularTransport = toModularTransport(circleRpcUrl, CLIENT_KEY);
 
 // ── Public Client ──
 export const circlePublicClient = createPublicClient({
   chain: baseSepolia,
-  transport: modularTransport as Transport,
+  transport: http(circleRpcUrl),
 });
 
 /**
