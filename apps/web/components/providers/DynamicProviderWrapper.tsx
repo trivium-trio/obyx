@@ -7,7 +7,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { wagmiConfig } from "@/lib/wagmi";
 import { WalletProvider } from "@/lib/WalletContext";
 import { TransactionHistoryProvider } from "@/lib/TransactionHistoryContext";
-import { useAuth } from "@/lib/AuthContext";
 import type { ReactNode } from "react";
 
 const DYNAMIC_ENV_ID = (process.env.NEXT_PUBLIC_DYNAMIC_ENV_ID || "placeholder-env-id") as string;
