@@ -63,9 +63,13 @@ export default function WalletTransferModal({ isOpen, onClose }: { isOpen: boole
     try {
       const usdcAmt = parseFloat(cryptoAmount);
       if (!usdcAmt || usdcAmt <= 0) throw new Error("Enter a valid amount");
+      if (usdcBalance < usdcAmt) throw new Error(`Insufficient balance. You have ${usdcBalance.toFixed(6)} USDC available.`);
+
+      const cleanRecipient = recipient.trim().toLowerCase();
+      if (cleanRecipient === activeWalletAddress?.toLowerCase()) throw new Error("You cannot transfer funds to your own address.");
 
       // Gasless transfer to the specified recipient
-      const gaslessResult = await sendGaslessSwap(recipient, usdcAmt);
+      const gaslessResult = await sendGaslessSwap(cleanRecipient, usdcAmt);
 
       setTxState({
         phase: "success",
