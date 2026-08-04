@@ -73,8 +73,8 @@ export default function WalletTransferModal({ isOpen, onClose }: { isOpen: boole
         txHash: gaslessResult.txHash,
       });
       refreshTransactions();
-    } catch (err: any) {
-      setTxState({ phase: "error", message: err.message || "Transfer failed" });
+    } catch (err: unknown) {
+      setTxState({ phase: "error", message: err instanceof Error ? err.message : "Transfer failed" });
     }
   };
 
