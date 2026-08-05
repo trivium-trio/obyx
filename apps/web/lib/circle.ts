@@ -11,7 +11,7 @@ import {
 import { createPublicClient, http } from "viem";
 import { createBundlerClient } from "viem/account-abstraction";
 import { baseSepolia } from "viem/chains";
-import type { Account, WalletClient, Transport, PublicClient } from "viem";
+import type { Account, WalletClient, Transport } from "viem";
 import { toAccount } from "viem/accounts";
 
 // ── Environment ──

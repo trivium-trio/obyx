@@ -10,7 +10,6 @@ import {
   X,
   Plus,
   LogOut,
-  Shield,
   ExternalLink,
   Zap,
   Loader2,
