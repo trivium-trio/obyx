@@ -4,6 +4,7 @@ import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { TransactionStream } from "@/components/dashboard/TransactionStream";
 import { OrderBook } from "@/components/dashboard/OrderBook";
 import { StatusCards } from "@/components/dashboard/StatusCards";
+import { ProductFeaturesSection } from "@/components/home/ProductFeaturesSection";
 
 export default function HomePage() {
   return (
@@ -33,23 +34,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Market Status Section ── */}
-      <section className="relative cyber-bg pb-16 pt-12 border-t border-white/[0.04]">
-        <div className="scanline-overlay" />
-        
-        <div className="relative z-10 mx-auto max-w-6xl px-6">
-          <div className="mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
-              Network Intelligence
-            </h2>
-            <p className="text-sm text-white/40 max-w-2xl leading-relaxed">
-              Real-time analytics monitoring the pulse of the market. Track overall sentiment,
-              protocol health, volatility indicators, and current network gas fees before you execute your next swap.
-            </p>
-          </div>
-          <StatusCards />
-        </div>
-      </section>
+      <ProductFeaturesSection />
 
       <TrustSection />
     </>

@@ -16,7 +16,7 @@ const proofs = [
     icon: Zap,
     title: "< 30s Settlement",
     description:
-      "Near-instant swaps powered by on-chain liquidity pools. No waiting for bank confirmations.",
+      "Near-instant onramps, offramps, and transfers powered by on-chain liquidity pools. No waiting for bank confirmations.",
     stat: "< 30s",
     statLabel: "Avg. Time",
   },
@@ -65,8 +65,7 @@ export function TrustSection() {
             Built for trust
           </h2>
           <p className="text-sm text-white/35 max-w-md mx-auto">
-            Every swap is secured, audited, and settled on-chain.
-            Zero compromise.
+            Every transaction — onramp, offramp, or transfer — is secured, audited, and settled on-chain. Zero compromise.
           </p>
         </motion.div>
 
