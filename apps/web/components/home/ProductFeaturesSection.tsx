@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, type Easing } from "framer-motion";
 import { ArrowDownToLine, ArrowUpFromLine, Send } from "lucide-react";
 
 const features = [
@@ -32,7 +32,7 @@ const fadeInUp = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, delay: i * 0.15, ease: "easeOut" },
+    transition: { duration: 0.5, delay: i * 0.15, ease: "easeOut" as Easing },
   }),
 };
 
