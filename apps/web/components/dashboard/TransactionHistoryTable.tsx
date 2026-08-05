@@ -7,7 +7,6 @@ import {
   ArrowUpRight,
   ExternalLink,
   History,
-  Loader2,
   RefreshCw,
   Search,
   Filter,

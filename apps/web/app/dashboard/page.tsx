@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { SwapWidget } from "@/components/home/SwapWidget";
+import { SwapWidget } from "@/components/swap/SwapWidget";
 import { TransactionHistoryTable } from "@/components/dashboard/TransactionHistoryTable";
 import { useAuth } from "@/lib/AuthContext";
 import { WalletWidget } from "@/components/dashboard/WalletWidget";

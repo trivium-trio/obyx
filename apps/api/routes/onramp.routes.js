@@ -138,6 +138,21 @@ router.post('/init', initLimiter, verifySupabaseToken, async (req, res) => {
       });
     }
 
+    // --- Validate Ethereum Address Format ---
+    if (!/^0x[a-fA-F0-9]{40}$/.test(targetWalletAddress)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid target wallet address format.',
+      });
+    }
+
+    // --- Synchronize active wallet in database for downstream webhook disbursements ---
+    if (requestedWallet && requestedWallet !== user.walletAddress) {
+      user.walletAddress = targetWalletAddress;
+      await user.save();
+      console.log(`[ONRAMP] Synced User ${userId} active wallet to: ${targetWalletAddress}`);
+    }
+
     // --- Resolve phone number: prefer request body, fall back to user profile ---
     let stkPhone = null;
     if (rawPhone && typeof rawPhone === 'string') {
