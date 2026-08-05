@@ -51,7 +51,7 @@ const modularTransport = toModularTransport(circleRpcUrl, CLIENT_KEY);
 // ── Public Client ──
 export const circlePublicClient = createPublicClient({
   chain: baseSepolia,
-  transport: http(circleRpcUrl),
+  transport: http(),
 });
 
 /**
@@ -115,6 +115,7 @@ export function createCircleBundlerClient(
     account: smartAccount,
     chain: baseSepolia,
     transport: modularTransport as Transport,
+    client: circlePublicClient as any,
   });
 }
 
