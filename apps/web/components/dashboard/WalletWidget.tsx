@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Wallet,
@@ -10,13 +10,15 @@ import {
   X,
   Plus,
   LogOut,
-  Shield,
   ExternalLink,
   Zap,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWallet } from "@/lib/WalletContext";
-import { useDynamicContext, useDynamicModals, DynamicWidget } from "@dynamic-labs/sdk-react-core";
+import { useDynamicContext, useDynamicModals, DynamicWidget, DynamicContext, useUserWallets } from "@dynamic-labs/sdk-react-core";
+import { useAuth } from "@/lib/AuthContext";
+import { useRouter } from "next/navigation";
 
 // ── Helpers ──
 const formatAddress = (addr: string) =>
@@ -32,12 +34,19 @@ export function WalletWidget() {
     isInitializingCircle,
     circleError,
     disconnect,
+    provisionObyxWallet,
   } = useWallet();
 
   const { primaryWallet, setShowAuthFlow } = useDynamicContext();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { setPrimaryWallet } = useContext(DynamicContext) as any;
   const { setShowLinkNewWalletModal } = useDynamicModals();
+  const userWallets = useUserWallets();
+  const { user } = useAuth();
+  const router = useRouter();
 
   const [showSwitchModal, setShowSwitchModal] = useState(false);
+  const [switchingWalletId, setSwitchingWalletId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -71,6 +80,20 @@ export function WalletWidget() {
 
   // ── Disconnected State ──
   if (!isConnected) {
+    if (!user) {
+      return (
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => router.push("/auth/signup")}
+          className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-neon-orange to-neon-amber text-white hover:shadow-[0_0_20px_rgba(255,107,0,0.25)] transition-all duration-300 cursor-pointer"
+        >
+          <Wallet className="h-4 w-4" />
+          Sign Up to Connect Wallet
+        </motion.button>
+      );
+    }
+
     return (
       <DynamicWidget
         innerButtonComponent={
@@ -186,9 +209,13 @@ export function WalletWidget() {
             <div className="px-3.5 pb-2.5 space-y-2">
               {/* OBYX Embedded Wallet (Circle SA) */}
               <button
-                onClick={() => {
-                  setActiveWallet("embedded");
+                onClick={async () => {
                   setShowSwitchModal(false);
+                  if (!circleAddress) {
+                    await provisionObyxWallet();
+                  } else {
+                    setActiveWallet("embedded");
+                  }
                 }}
                 className={cn(
                   "flex items-center gap-3 w-full rounded-xl p-3 text-left transition-all duration-200",
@@ -227,46 +254,66 @@ export function WalletWidget() {
                 )}
               </button>
 
-              {/* External EOA Wallet (if connected) */}
-              {walletAddress && (
-                <button
-                  onClick={() => {
-                    setActiveWallet("external");
-                    setShowSwitchModal(false);
-                  }}
-                  className={cn(
-                    "flex items-center gap-3 w-full rounded-xl p-3 text-left transition-all duration-200",
-                    activeWallet === "external"
-                      ? "bg-info/10 border border-info/25"
-                      : "bg-surface-800/50 border border-white/[0.06] hover:bg-surface-800 hover:border-white/[0.1]"
-                  )}
-                >
-                  {/* Icon */}
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-info/15 border border-info/20">
-                    <ExternalLink className="h-4 w-4 text-info" />
-                  </div>
+              {/* External EOA Wallets (Multi-wallet support) */}
+              {userWallets.map((wallet) => {
+                const isActive = activeWallet === "external" && wallet.address === walletAddress;
+                const isSwitching = switchingWalletId === wallet.id;
+                
+                return (
+                  <button
+                    key={wallet.id}
+                    disabled={isSwitching}
+                    onClick={async () => {
+                      if (wallet.address !== walletAddress) {
+                        try {
+                          setSwitchingWalletId(wallet.id);
+                          await setPrimaryWallet(wallet.id);
+                        } catch (err) {
+                          console.error("Failed to switch primary wallet", err);
+                        } finally {
+                          setSwitchingWalletId(null);
+                        }
+                      }
+                      setActiveWallet("external");
+                      setShowSwitchModal(false);
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 w-full rounded-xl p-3 text-left transition-all duration-200",
+                      isActive
+                        ? "bg-info/10 border border-info/25"
+                        : "bg-surface-800/50 border border-white/[0.06] hover:bg-surface-800 hover:border-white/[0.1]",
+                      isSwitching && "opacity-75 cursor-not-allowed"
+                    )}
+                  >
+                    {/* Icon */}
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-info/15 border border-info/20">
+                      <ExternalLink className="h-4 w-4 text-info" />
+                    </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-white">
-                        {connectorName}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-info/15 text-info border border-info/20">
-                        External
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-white">
+                          {wallet.connector?.name || "External Wallet"}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-info/15 text-info border border-info/20">
+                          External
+                        </span>
+                      </div>
+                      <span className="text-xs font-mono text-white/35 block mt-0.5">
+                        {formatAddress(wallet.address)}
                       </span>
                     </div>
-                    <span className="text-xs font-mono text-white/35 block mt-0.5">
-                      {formatAddress(walletAddress)}
-                    </span>
-                  </div>
 
-                  {/* Checkmark */}
-                  {activeWallet === "external" && (
-                    <Check className="h-4 w-4 text-info shrink-0" />
-                  )}
-                </button>
-              )}
+                    {/* Checkmark or Spinner */}
+                    {isSwitching ? (
+                      <Loader2 className="h-4 w-4 text-info animate-spin shrink-0" />
+                    ) : isActive ? (
+                      <Check className="h-4 w-4 text-info shrink-0" />
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Link New Wallet */}

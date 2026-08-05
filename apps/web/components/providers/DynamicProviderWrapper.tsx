@@ -29,6 +29,7 @@ export function DynamicProviderWrapper({ children }: { children: ReactNode }) {
         walletConnectors: [EthereumWalletConnectors],
         // Wallet-only mode — no email/social auth flows
         walletConnectPreferredChains: ["eip155:84532"], // Base Sepolia chain ID
+        initialAuthenticationMode: "connect-only",
       }}
     >
       <WagmiProvider config={wagmiConfig}>

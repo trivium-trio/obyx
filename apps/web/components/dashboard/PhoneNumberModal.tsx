@@ -42,8 +42,8 @@ export function PhoneNumberModal({ isOpen, onClose, onSuccess }: PhoneNumberModa
     setIsSubmitting(true);
     try {
       onSuccess(cleanPhone);
-    } catch (err: any) {
-      setError(err.message || "Failed to save phone number.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save phone number.");
     } finally {
       setIsSubmitting(false);
     }

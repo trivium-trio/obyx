@@ -10,7 +10,6 @@ import {
 } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { UserService, type Transaction } from "@/lib/api/client";
-import { OnrampService, OfframpService } from "@/lib/api/client";
 
 export type UserTransaction = Transaction;
 
@@ -60,6 +59,7 @@ export function TransactionHistoryProvider({ children }: { children: ReactNode }
   }, [user]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshTransactions();
   }, [refreshTransactions]);
 
