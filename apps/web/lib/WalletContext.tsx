@@ -126,6 +126,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setCircleAddress(smartAccount.address);
       setActiveWallet("embedded");
 
+      // Persist SA address so returning users see it instantly
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`obyx_circle_sa_${walletAddress.toLowerCase()}`, smartAccount.address);
+      }
+
       try {
         const res = await UserService.postUserLinkWallet({ walletAddress: smartAccount.address });
         setUserPhone(res.phoneNumber ?? null);
@@ -155,8 +160,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
 
     const addr = primaryWallet.address;
-    
-    // If the primary EOA changed, ensure the UI switches to it
+
+    // If the primary EOA changed, reset to external until we check for cached SA
     setWalletAddress((prev) => {
       if (prev !== addr) {
         setActiveWallet('external');
@@ -164,24 +169,49 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       return addr;
     });
 
-    // Fetch profile for existing phone number
+    // ── Tier 1: Instantly restore cached Circle SA address from localStorage ──
+    if (typeof window !== 'undefined') {
+      const cachedSA = localStorage.getItem(`obyx_circle_sa_${addr.toLowerCase()}`);
+      if (cachedSA) {
+        // Show the SA address immediately — no "Not initialized"
+        setCircleAddress(cachedSA);
+        setActiveWallet('embedded');
+      }
+    }
+
+    // Fetch profile for existing phone number + backend wallet fallback
     UserService.getUserProfile().then((profile) => {
       if (profile?.phoneNumber) {
         setUserPhone(profile.phoneNumber);
       }
+
+      // ── Tier 2: Backend fallback for new-device / cleared-cache scenarios ──
+      // If no localStorage hit but backend has a linked wallet, cache it and show it
+      if (typeof window !== 'undefined') {
+        const alreadyCached = localStorage.getItem(`obyx_circle_sa_${addr.toLowerCase()}`);
+        if (!alreadyCached && profile?.walletAddress) {
+          localStorage.setItem(`obyx_circle_sa_${addr.toLowerCase()}`, profile.walletAddress);
+          setCircleAddress(profile.walletAddress);
+          setActiveWallet('embedded');
+        }
+      }
     });
   }, [primaryWallet]);
 
-  // ── Auto-provision SCA after connection ──
+  // ── Auto-provision bundler client for returning users ──
+  // Once we have an EOA + a cached circleAddress but no live bundler client,
+  // silently re-provision in the background so gasless swaps work.
   useEffect(() => {
-    // If we have a connected wallet but no Circle SA, automatically provision it
-    if (primaryWallet && walletAddress && !circleAddress && !isInitializingCircle) {
-      // Prevent infinite loops by tracking initialization attempts per wallet address
-      if (initAttemptedForRef.current !== walletAddress) {
-        initAttemptedForRef.current = walletAddress;
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        provisionObyxWallet();
-      }
+    if (
+      primaryWallet &&
+      walletAddress &&
+      circleAddress &&
+      !bundlerClientRef.current &&
+      !isInitializingCircle &&
+      initAttemptedForRef.current !== walletAddress
+    ) {
+      initAttemptedForRef.current = walletAddress;
+      provisionObyxWallet();
     }
   }, [primaryWallet, walletAddress, circleAddress, isInitializingCircle, provisionObyxWallet]);
 
@@ -209,6 +239,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   );
 
   // ── Disconnect ──
+  // Clears session state but preserves the SA address mapping in localStorage.
+  // The Circle SA exists on-chain permanently — signing out doesn't destroy it.
   const disconnect = useCallback(async () => {
     try {
       await handleLogOut();
@@ -225,6 +257,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('obyx_active_wallet');
     }
     // Clear Dynamic Labs cached wallet state from localStorage
+    // NOTE: obyx_circle_sa_* keys are intentionally preserved for auto-restore
     if (typeof window !== 'undefined') {
       Object.keys(localStorage).forEach((key) => {
         if (
