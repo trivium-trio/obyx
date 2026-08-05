@@ -172,11 +172,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     });
   }, [primaryWallet]);
 
-  // ── Auto-provision SCA if requested before connection ──
+  // ── Auto-provision SCA after connection ──
   useEffect(() => {
+    // If we have a connected wallet but no Circle SA, automatically provision it
     if (primaryWallet && walletAddress && !circleAddress && !isInitializingCircle) {
-      if (typeof window !== 'undefined' && localStorage.getItem('obyx_auto_provision') === 'true') {
-        localStorage.removeItem('obyx_auto_provision');
+      // Prevent infinite loops by tracking initialization attempts per wallet address
+      if (initAttemptedForRef.current !== walletAddress) {
+        initAttemptedForRef.current = walletAddress;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         provisionObyxWallet();
       }
