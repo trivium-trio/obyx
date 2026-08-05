@@ -3,7 +3,7 @@
 import { motion, type Easing } from "framer-motion";
 import { ArrowRight, Globe, Users, Layers, Zap } from "lucide-react";
 
-const steps = [
+const onrampSteps = [
   {
     number: "01",
     title: "Deposit Cash",
@@ -24,6 +24,48 @@ const steps = [
     description:
       "USDC, USDT, or DAI lands in your wallet within seconds. On-chain, verifiable, yours.",
     icon: Globe,
+  },
+];
+
+const offrampSteps = [
+  {
+    number: "01",
+    title: "Deposit Crypto",
+    description: "Send USDC, USDT, or DAI from any supported network to our smart contract. Instantly verified.",
+    icon: Globe,
+  },
+  {
+    number: "02",
+    title: "Match & Settle",
+    description: "Our engine pairs your crypto with a local liquidity provider. The smart contract holds funds securely.",
+    icon: Layers,
+  },
+  {
+    number: "03",
+    title: "Receive Cash",
+    description: "Funds arrive directly in your M-Pesa or local bank account in seconds.",
+    icon: Zap,
+  },
+];
+
+const walletSteps = [
+  {
+    number: "01",
+    title: "Enter Address",
+    description: "Input the recipient's wallet address and select the destination network.",
+    icon: Globe,
+  },
+  {
+    number: "02",
+    title: "Confirm Transfer",
+    description: "Review the transparent, flat fee and sign the transaction securely from your wallet.",
+    icon: Layers,
+  },
+  {
+    number: "03",
+    title: "Instant Delivery",
+    description: "Stablecoins are routed cross-chain and delivered instantly. Zero bridging hassle.",
+    icon: Zap,
   },
 ];
 
@@ -106,7 +148,7 @@ export default function AboutPage() {
             className="text-base text-white/35 max-w-lg mx-auto leading-relaxed"
           >
             OBYX is a peer-to-peer liquidity infrastructure that lets anyone
-            convert local currency to stablecoins — without banks, without
+            buy crypto with cash, cash out instantly, or transfer stablecoins wallet-to-wallet — without banks, without
             delays, without borders.
           </motion.p>
         </section>
@@ -130,42 +172,114 @@ export default function AboutPage() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {steps.map((step, i) => (
-              <motion.div
-                key={step.number}
-                custom={i}
-                variants={fadeInUp}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                className="group relative rounded-2xl border border-white/[0.06] bg-surface-800/40 p-8 hover:border-white/[0.1] hover:bg-surface-800/70 transition-all duration-300"
-              >
-                {/* Step Number */}
-                <span className="block text-5xl font-bold font-mono text-white/[0.04] mb-4">
-                  {step.number}
-                </span>
+          <div className="space-y-16">
+            {/* Onramp */}
+            <div>
+              <h3 className="text-xl font-semibold text-white mb-6 text-center md:text-left">Buy Crypto (Onramp)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {onrampSteps.map((step, i) => (
+                  <motion.div
+                    key={step.number}
+                    custom={i}
+                    variants={fadeInUp}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    className="group relative rounded-2xl border border-white/[0.06] bg-surface-800/40 p-8 hover:border-white/[0.1] hover:bg-surface-800/70 transition-all duration-300"
+                  >
+                    <span className="block text-5xl font-bold font-mono text-white/[0.04] mb-4">
+                      {step.number}
+                    </span>
+                    <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-neon-orange/8 border border-neon-orange/10">
+                      <step.icon className="h-4.5 w-4.5 text-neon-orange/70" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">
+                      {step.title}
+                    </h3>
+                    <p className="text-sm text-white/35 leading-relaxed">
+                      {step.description}
+                    </p>
+                    {i < onrampSteps.length - 1 && (
+                      <div className="hidden md:block absolute top-1/2 -right-3 z-10">
+                        <ArrowRight className="h-4 w-4 text-white/10" />
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
 
-                {/* Icon */}
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-neon-orange/8 border border-neon-orange/10">
-                  <step.icon className="h-4.5 w-4.5 text-neon-orange/70" />
-                </div>
+            {/* Offramp */}
+            <div>
+              <h3 className="text-xl font-semibold text-white mb-6 text-center md:text-left">Cash Out (Offramp)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {offrampSteps.map((step, i) => (
+                  <motion.div
+                    key={step.number}
+                    custom={i}
+                    variants={fadeInUp}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    className="group relative rounded-2xl border border-white/[0.06] bg-surface-800/40 p-8 hover:border-white/[0.1] hover:bg-surface-800/70 transition-all duration-300"
+                  >
+                    <span className="block text-5xl font-bold font-mono text-white/[0.04] mb-4">
+                      {step.number}
+                    </span>
+                    <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-neon-orange/8 border border-neon-orange/10">
+                      <step.icon className="h-4.5 w-4.5 text-neon-orange/70" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">
+                      {step.title}
+                    </h3>
+                    <p className="text-sm text-white/35 leading-relaxed">
+                      {step.description}
+                    </p>
+                    {i < offrampSteps.length - 1 && (
+                      <div className="hidden md:block absolute top-1/2 -right-3 z-10">
+                        <ArrowRight className="h-4 w-4 text-white/10" />
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
 
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {step.title}
-                </h3>
-                <p className="text-sm text-white/35 leading-relaxed">
-                  {step.description}
-                </p>
-
-                {/* Arrow connector (on md+) */}
-                {i < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-1/2 -right-3 z-10">
-                    <ArrowRight className="h-4 w-4 text-white/10" />
-                  </div>
-                )}
-              </motion.div>
-            ))}
+            {/* Wallet-to-Wallet */}
+            <div>
+              <h3 className="text-xl font-semibold text-white mb-6 text-center md:text-left">Transfer (Wallet-to-Wallet)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {walletSteps.map((step, i) => (
+                  <motion.div
+                    key={step.number}
+                    custom={i}
+                    variants={fadeInUp}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    className="group relative rounded-2xl border border-white/[0.06] bg-surface-800/40 p-8 hover:border-white/[0.1] hover:bg-surface-800/70 transition-all duration-300"
+                  >
+                    <span className="block text-5xl font-bold font-mono text-white/[0.04] mb-4">
+                      {step.number}
+                    </span>
+                    <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-neon-orange/8 border border-neon-orange/10">
+                      <step.icon className="h-4.5 w-4.5 text-neon-orange/70" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">
+                      {step.title}
+                    </h3>
+                    <p className="text-sm text-white/35 leading-relaxed">
+                      {step.description}
+                    </p>
+                    {i < walletSteps.length - 1 && (
+                      <div className="hidden md:block absolute top-1/2 -right-3 z-10">
+                        <ArrowRight className="h-4 w-4 text-white/10" />
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -188,7 +302,7 @@ export default function AboutPage() {
               </h2>
               <p className="text-sm text-white/35 leading-relaxed mb-6">
                 Our matching engine connects local cash providers with
-                on-chain liquidity in real-time. Every swap is secured by
+                on-chain liquidity in real-time — powering onramps, offramps, and wallet-to-wallet transfers. Every transaction is secured by
                 smart contract escrow — no custodial risk, no middlemen.
               </p>
               <div className="space-y-3">

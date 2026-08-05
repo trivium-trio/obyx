@@ -49,8 +49,7 @@ export function HeroSection() {
             transition={{ duration: 0.6, delay: 0.5 }}
             className="text-lg text-white/40 max-w-md leading-relaxed mb-10"
           >
-            Convert KSH to USDC in seconds. No banks, no delays, no BS.
-            The fastest on-ramp to the crypto economy.
+            Buy crypto with cash, cash out to M-Pesa, or send stablecoins wallet-to-wallet — all in seconds. No banks, no delays.
           </motion.p>
 
           {/* CTA: GET STARTED + Dashboard Access */}
